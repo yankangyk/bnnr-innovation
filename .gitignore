@@ -1,0 +1,32 @@
+# Bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# Results (generated at runtime)
+Results/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# Distribution
+build/
+dist/
+*.egg-info/
+*.egg
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude
+.claude/
+
+# Jupyter
+.ipynb_checkpoints/
