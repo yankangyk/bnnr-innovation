@@ -40,46 +40,46 @@ def save(name):
 def fig1_heatmap():
     gammas = [0.5, 1.0, 2.0, 3.0]
     lambdas = [0, 1e-3, 1e-2, 1e-1]
-    lambda_labels = ["0", "10⁻³", "10⁻²", "10⁻¹"]
+    lambda_labels = [r"$0$", r"$10^{-3}$", r"$10^{-2}$", r"$10^{-1}$"]
 
     data = np.array([
-        [0.3258, 0.3251, 0.3251, 0.3251],
-        [0.3242, 0.3242, 0.3242, 0.3242],
-        [0.3273, 0.3274, 0.3274, 0.3274],
-        [0.3245, 0.3244, 0.3244, 0.3244],
+        [0.3273, 0.3272, 0.3260, 0.2829],  # γ=0.5
+        [0.3273, 0.3272, 0.3269, 0.2832],  # γ=1.0
+        [0.3273, 0.3269, 0.3312, 0.2806],  # γ=2.0
+        [0.3273, 0.3269, 0.3286, 0.2577],  # γ=3.0
     ])
     bnnr_baseline = 0.3071
 
-    fig, ax = plt.subplots(figsize=(6.5, 4.0))
-    im = ax.imshow(data, cmap="YlOrRd", aspect="auto", vmin=0.307, vmax=0.328)
+    fig, ax = plt.subplots(figsize=(5.8, 3.8))
+    im = ax.imshow(data, cmap="YlOrRd", aspect="auto", vmin=0.255, vmax=0.332)
 
     for i in range(len(gammas)):
         for j in range(len(lambdas)):
             val = data[i, j]
-            color = "white" if val < 0.326 else "black"
+            color = "white" if val > 0.315 else "black"
             ax.text(j, i, f"{val:.4f}", ha="center", va="center",
                     fontsize=10, fontweight="bold", color=color)
+
+    # Dashed divider between inert region (λ=0..10⁻²) and degraded (λ=10⁻¹)
+    ax.axvline(x=2.5, color="black", lw=1.6, ls="--", alpha=0.55)
 
     ax.set_xticks(range(len(lambdas)))
     ax.set_xticklabels(lambda_labels, fontsize=11)
     ax.set_yticks(range(len(gammas)))
-    ax.set_yticklabels([f"γ = {g}" for g in gammas], fontsize=11)
-    ax.set_xlabel("Regularization strength λ", fontsize=12)
-    ax.set_ylabel("Confidence parameter γ", fontsize=12)
+    ax.set_yticklabels([rf"$\gamma = {g}$" for g in gammas], fontsize=11)
+    ax.set_xlabel("Regularization strength " + r"$\lambda$", fontsize=12)
+    ax.set_ylabel("Confidence parameter " + r"$\gamma$", fontsize=12)
 
     cbar = plt.colorbar(im, ax=ax, shrink=0.85, pad=0.02)
     cbar.set_label("AUPR", fontsize=11)
 
-    ax.set_title(f"GBNNR: γ × λ sweep on Fdataset fold 1\n"
-                 f"(BNNR baseline AUPR = {bnnr_baseline:.4f})",
-                 fontsize=12, fontweight="bold", pad=12)
-
-    # Annotation
-    ax.annotate("λ inert from 0 to 10⁻¹\nRow-wise AUPR constant",
-                xy=(1.5, 2), xytext=(2.8, 1.2),
-                fontsize=9, ha="center",
-                arrowprops=dict(arrowstyle="->", color="black", lw=1.2),
-                bbox=dict(boxstyle="round,pad=0.3", facecolor="lightyellow", alpha=0.9))
+    # Title with built-in annotation — no extra boxes or arrows
+    ax.set_title(
+        f"GBNNR: " + r"$\gamma \times \lambda$" + f" sweep on Fdataset fold 1\n"
+        f"(BNNR baseline AUPR = {bnnr_baseline:.4f}; "
+        + r"$\lambda = 0$ to $10^{-2}$ inert, $\lambda = 10^{-1}$ degrades"
+        + ")",
+        fontsize=10.5, fontweight="bold", pad=12)
 
     plt.tight_layout()
     save("fig1_lambda_heatmap")
@@ -91,12 +91,13 @@ def fig1_heatmap():
 # ═════════════════════════════════════════════════════════════════════════════════
 def fig2_alpha_sensitivity():
     alphas = [0, 0.1, 0.3, 0.5, 0.7, 1.0]
-    # Estimated AUPR values consistent with chapter plan (fold 1 data):
-    # "Optimal α≈0.5 (Fdataset, Cdataset), α≈0.3 (DNdataset)"
-    # α=0 recovers BNNR
-    f_aupr  = [0.3071, 0.3134, 0.3179, 0.3198, 0.3172, 0.3145]
-    c_aupr  = [0.2970, 0.3320, 0.3453, 0.3479, 0.3438, 0.3380]
-    dn_aupr = [0.2181, 0.2905, 0.3157, 0.3120, 0.3010, 0.2870]
+    # Actual experimental results from _alpha_sweep.py (Fdataset/Cdataset/DNdataset, fold 1)
+    f_aupr  = [0.3157, 0.3148, 0.3113, 0.3118, 0.3087, 0.3036]
+    f_auroc = [0.9138, 0.9134, 0.9132, 0.9132, 0.9135, 0.9142]
+    c_aupr  = [0.4090, 0.4072, 0.4054, 0.3983, 0.4047, 0.4003]
+    c_auroc = [0.9516, 0.9540, 0.9561, 0.9568, 0.9569, 0.9560]
+    dn_aupr = [0.3259, 0.3259, 0.3259, 0.3259, 0.3260, 0.3260]
+    dn_auroc = [0.9311, 0.9658, 0.9722, 0.9735, 0.9740, 0.9743]
 
     fig, axes = plt.subplots(1, 3, figsize=(12, 4.0), sharex=True)
 
@@ -111,7 +112,7 @@ def fig2_alpha_sensitivity():
                 markersize=8, markerfacecolor=color, markeredgecolor="white",
                 markeredgewidth=0.8)
         ax.axhline(y=aupr[0], color="gray", ls="--", lw=0.8, alpha=0.6,
-                   label=f"α=0 (BNNR): {aupr[0]:.4f}")
+                   label=f"α=0 (GIP only): {aupr[0]:.4f}")
         best_idx = np.argmax(aupr)
         ax.scatter([alphas[best_idx]], [aupr[best_idx]], s=120, color="red",
                    zorder=10,
@@ -122,8 +123,8 @@ def fig2_alpha_sensitivity():
         ax.grid(True, alpha=0.3)
         ax.legend(fontsize=8, loc="lower right")
 
-    fig.suptitle("GF-BNNR: Effect of Filter Strength on AUPR", fontsize=13,
-                 fontweight="bold", y=1.02)
+    fig.suptitle("GF-BNNR: Effect of Filter Strength on AUPR (fold 1)",
+                 fontsize=13, fontweight="bold", y=1.02)
     plt.tight_layout()
     save("fig2_alpha_sensitivity")
     plt.close()
@@ -133,21 +134,21 @@ def fig2_alpha_sensitivity():
 # Fig 3: Inside-Outside Framework Schematic
 # ═════════════════════════════════════════════════════════════════════════════════
 def fig3_framework():
-    fig, ax = plt.subplots(figsize=(10, 5.5))
-    ax.set_xlim(0, 10)
-    ax.set_ylim(0, 6)
+    fig, ax = plt.subplots(figsize=(11, 6.2))
+    ax.set_xlim(0, 11)
+    ax.set_ylim(0, 6.8)
     ax.axis("off")
 
-    # Colors
-    c_bnnr = "#607D8B"     # blue-gray
-    c_gbnnr = "#FF9800"    # orange (inside)
-    c_gfbnnr = "#2196F3"   # blue (outside)
-    c_manifold = "#4CAF50" # green
-    c_data = "#9C27B0"     # purple
-    c_arrow = "#333333"
+    c_bnnr   = "#607D8B"
+    c_gbnnr  = "#FF9800"
+    c_gfbnnr = "#2196F3"
+    c_manifold = "#4CAF50"
+    c_data   = "#37474F"
+    c_arrow  = "#555555"
+    c_filter_box = "#E3F2FD"
 
-    def draw_box(ax, x, y, w, h, text, color, fontsize=10, fontweight="normal",
-                 text_color="white", edge_color=None, lw=1.5):
+    def box(ax, x, y, w, h, text, color, fontsize=9.5, fontweight="normal",
+            text_color="white", edge_color=None, lw=1.5):
         if edge_color is None:
             edge_color = color
         rect = FancyBboxPatch((x - w/2, y - h/2), w, h,
@@ -157,85 +158,83 @@ def fig3_framework():
         ax.text(x, y, text, ha="center", va="center", fontsize=fontsize,
                 fontweight=fontweight, color=text_color)
 
-    def draw_arrow(ax, x1, y1, x2, y2, color=c_arrow, lw=1.5, style="->"):
+    def arrow(ax, x1, y1, x2, y2, color=c_arrow, lw=1.5):
         ax.annotate("", xy=(x2, y2), xytext=(x1, y1),
-                    arrowprops=dict(arrowstyle=style, color=color, lw=lw))
+                    arrowprops=dict(arrowstyle="->", color=color, lw=lw))
 
-    def draw_label(ax, x, y, text, fontsize=9, color="black", ha="center",
-                   fontweight="normal"):
+    def label(ax, x, y, text, fontsize=8.5, color="black", ha="center",
+              fontweight="normal", fontstyle="normal"):
         ax.text(x, y, text, ha=ha, va="center", fontsize=fontsize,
-                color=color, fontweight=fontweight)
+                color=color, fontweight=fontweight, fontstyle=fontstyle)
 
-    # ── Left: Input ──
-    draw_box(ax, 1.0, 4.5, 1.8, 0.9, "Similarity\nNetworks", c_data, fontsize=9,
-             fontweight="bold")
-    draw_box(ax, 1.0, 2.5, 1.8, 0.9, "Association\nMatrix", c_data, fontsize=9,
-             fontweight="bold")
+    # ── Title ──
+    ax.text(5.5, 6.55, "Inside-Outside Framework for Manifold-Aware Matrix Completion",
+            ha="center", va="top", fontsize=14, fontweight="bold")
 
-    # ── Center: BNNR Core ──
-    draw_box(ax, 3.5, 3.5, 2.0, 2.8, "", "#ECEFF1", edge_color="#90A4AE", lw=1.5)
-    draw_label(ax, 3.5, 5.5, "BNNR ADMM", color=c_bnnr, fontsize=12,
-               fontweight="bold")
-    draw_label(ax, 3.5, 4.8, "W-update (LS)\nX-update (SVT)\nY-update (dual)",
-               fontsize=9, color="#37474F")
+    # ── Left: Input data ──
+    box(ax, 1.2, 4.8, 1.8, 0.9, "Similarity\nNetworks", c_data, fontsize=9, fontweight="bold")
+    box(ax, 1.2, 3.3, 1.8, 0.9, "Association\nMatrix", c_data, fontsize=9, fontweight="bold")
+    # Input arrows (curved into BNNR core)
+    arrow(ax, 2.1, 4.8, 2.7, 4.8)
+    arrow(ax, 2.1, 3.3, 2.7, 3.3)
 
-    # ── Inside: GBNNR ──
-    draw_box(ax, 3.5, 2.5, 1.5, 0.7, "GBNNR", c_gbnnr, fontsize=10,
-             fontweight="bold")
-    draw_label(ax, 3.5, 2.0, "kNN Laplacian + Inner GD", fontsize=7.5,
-               color="#E65100")
-    # Inside bracket
-    ax.plot([2.5, 2.5], [2.1, 2.85], color=c_gbnnr, lw=2)
-    ax.plot([2.3, 2.5], [2.85, 2.85], color=c_gbnnr, lw=2)
-    draw_label(ax, 1.8, 2.85, "inside", fontsize=8, color=c_gbnnr, ha="right",
-               fontweight="bold")
+    # ── Center: BNNR core container ──
+    box(ax, 4.2, 4.05, 2.8, 2.8, "", "#ECEFF1", edge_color="#90A4AE", lw=1.5)
+    label(ax, 4.2, 5.2, "BNNR ADMM", color=c_bnnr, fontsize=12, fontweight="bold")
+    label(ax, 4.2, 4.4, "W-update (LS)\nX-update (SVT)\nY-update (dual)",
+          fontsize=9, color="#455A64")
 
-    # ── Right: Output + GF ──
-    draw_box(ax, 6.5, 3.5, 1.8, 1.2, "Completed\nMatrix M_raw", "#78909C",
-             fontsize=9, fontweight="bold")
-    draw_arrow(ax, 4.5, 3.5, 5.6, 3.5)
-    draw_label(ax, 5.05, 3.85, "output", fontsize=7.5, color="#555")
+    # ── GBNNR (inside BNNR, at bottom) ──
+    box(ax, 4.2, 3.2, 1.9, 0.7, "GBNNR", c_gbnnr, fontsize=10, fontweight="bold")
+    label(ax, 4.2, 2.75, "kNN Laplacian + Inner GD", fontsize=7.5, color="#BF360C")
+    # "inside" bracket on left of BNNR core
+    ax.plot([2.65, 2.65], [2.75, 3.55], color=c_gbnnr, lw=2.2)
+    ax.plot([2.35, 2.65], [3.55, 3.55], color=c_gbnnr, lw=2.2)
+    label(ax, 1.70, 3.55, "inside", fontsize=9, color=c_gbnnr, ha="right", fontweight="bold")
 
-    # ── GF-BNNR outside ──
-    draw_box(ax, 8.5, 3.5, 1.8, 1.2, "Filtered\nMatrix M_filt", c_gfbnnr,
-             fontsize=9, fontweight="bold")
-    draw_arrow(ax, 7.4, 3.5, 7.6, 3.5)
+    # ── Right: Output side ──
+    # Completed matrix
+    box(ax, 7.1, 4.05, 1.9, 1.1, "Completed\nMatrix " + r"$\mathbf{M}_{raw}$",
+        "#78909C", fontsize=9, fontweight="bold")
+    arrow(ax, 5.6, 4.05, 6.15, 4.05)
+    label(ax, 5.88, 4.35, "output", fontsize=7.5, color="#777")
 
-    # GF filter annotation
-    draw_box(ax, 8.5, 4.8, 2.2, 0.7, "Graph Low-Pass Filter", "#90CAF9",
-             fontsize=8.5, fontweight="bold", text_color="#0D47A1",
-             edge_color=c_gfbnnr)
-    draw_label(ax, 8.5, 4.3, "(I+αL_d)⁻¹ · M · (I+αL_r)⁻¹", fontsize=7.5,
-               color="#1565C0")
+    # GF Filter with formula as subtitle inside the box
+    box(ax, 9.1, 5.25, 2.6, 0.85,
+        "Graph Low-Pass Filter\n" + r"$(\mathbf{I}+\alpha_f\mathbf{L}_d)^{-1} \mathbf{M} (\mathbf{I}+\alpha_f\mathbf{L}_r)^{-1}$",
+        c_filter_box, fontsize=8.0, fontweight="bold", text_color="#0D47A1",
+        edge_color=c_gfbnnr)
 
-    # Outside bracket
-    ax.plot([8.5, 8.5], [4.10, 5.15], color=c_gfbnnr, lw=2)
-    ax.plot([8.5, 9.7], [5.15, 5.15], color=c_gfbnnr, lw=2)
-    draw_label(ax, 9.95, 5.15, "outside", fontsize=8, color=c_gfbnnr, ha="left",
-               fontweight="bold")
+    # Filtered matrix (below GF filter)
+    box(ax, 9.1, 3.55, 2.2, 1.0, "Filtered\nMatrix " + r"$\mathbf{M}_{\rm filt}$",
+        c_gfbnnr, fontsize=9, fontweight="bold")
 
-    # ── Manifold signal annotation ──
-    draw_label(ax, 5.5, 1.2, "Both strategies draw from the same manifold signal",
-               fontsize=9, color=c_manifold, fontweight="bold")
-    draw_label(ax, 5.5, 0.7, "Stacking yields no additive gain (AUPR 0.3237 vs 0.3269)",
-               fontsize=8, color="#555")
+    # Arrows: completed → filter → filtered
+    arrow(ax, 7.9, 4.6, 7.9, 4.825)     # up to filter box bottom
+    arrow(ax, 9.1, 4.825, 9.1, 4.05)    # down from filter to filtered
 
-    # Manifold links
-    ax.annotate("", xy=(3.5, 2.15), xytext=(6.5, 1.5),
-                arrowprops=dict(arrowstyle="->", color=c_manifold, lw=1.2,
-                               connectionstyle="arc3,rad=-0.3"))
-    ax.annotate("", xy=(6.5, 1.3), xytext=(8.5, 3.0),
-                arrowprops=dict(arrowstyle="->", color=c_manifold, lw=1.2,
-                               connectionstyle="arc3,rad=-0.3"))
+    # "outside" bracket on right (encompassing filter box + formula)
+    ax.plot([10.35, 10.35], [3.1, 5.78], color=c_gfbnnr, lw=2.2)
+    ax.plot([10.35, 10.75], [5.78, 5.78], color=c_gfbnnr, lw=2.2)
+    label(ax, 10.95, 5.78, "outside", fontsize=9, color=c_gfbnnr, ha="left", fontweight="bold")
 
-    # ── RA-BNNR supplementary path ──
-    draw_box(ax, 3.5, 0.9, 2.8, 0.5, "RA-BNNR: rank-adaptive β (complementary)",
-             "#E0E0E0", fontsize=8, text_color="#424242", edge_color="#9E9E9E",
-             lw=1.0)
+    # ── Bottom: Manifold signal + RA-BNNR ──
+    label(ax, 5.2, 1.80, "Both strategies draw from the same manifold signal",
+          fontsize=9.5, color=c_manifold, fontweight="bold")
+    label(ax, 5.2, 1.35, "Stacking yields no additive gain (AUPR 0.3237 vs 0.3269)",
+          fontsize=8, color="#666")
 
-    # Title
-    ax.text(5, 6.1, "Inside-Outside Framework for Manifold-Aware Matrix Completion",
-            ha="center", va="center", fontsize=14, fontweight="bold")
+    # Curved manifold arrows (bottom connecting path)
+    ax.annotate("", xy=(4.2, 2.85), xytext=(7.1, 1.95),
+                arrowprops=dict(arrowstyle="->", color=c_manifold, lw=1.3,
+                               connectionstyle="arc3,rad=-0.20"))
+    ax.annotate("", xy=(7.1, 1.80), xytext=(9.1, 3.05),
+                arrowprops=dict(arrowstyle="->", color=c_manifold, lw=1.3,
+                               connectionstyle="arc3,rad=-0.20"))
+
+    # RA-BNNR supplementary bar
+    box(ax, 4.2, 0.85, 3.2, 0.55, "RA-BNNR: rank-adaptive " + r"$\beta$" + " (complementary)",
+        "#F5F5F5", fontsize=8, text_color="#424242", edge_color="#BDBDBD", lw=1.0)
 
     plt.tight_layout(pad=0.5)
     save("fig3_framework_schematic")

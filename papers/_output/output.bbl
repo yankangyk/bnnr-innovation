@@ -1,0 +1,218 @@
+\begin{thebibliography}{35}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Aarsland et~al.(2009)]{aarsland2009}
+D.~Aarsland et~al.
+\newblock Memantine in patients with {Parkinson's} disease dementia or dementia with {Lewy} bodies: a double-blind, placebo-controlled, multicentre trial.
+\newblock \emph{Lancet Neurol.}, 8:\penalty0 613--618, 2009.
+\newblock \doi{10.1016/S1474-4422(09)70100-0}.
+
+\bibitem[Boyd et~al.(2011)]{boyd2011}
+S.~Boyd et~al.
+\newblock Distributed optimization and statistical learning via the alternating direction method of multipliers.
+\newblock \emph{Found. Trends Mach. Learn.}, 3:\penalty0 1--122, 2011.
+\newblock \doi{10.1561/2200000016}.
+
+\bibitem[Cai et~al.(2010)]{cai2010}
+J.-F. Cai et~al.
+\newblock A singular value thresholding algorithm for matrix completion.
+\newblock \emph{SIAM J. Optim.}, 20:\penalty0 1956--1982, 2010.
+\newblock \doi{10.1137/080738970}.
+
+\bibitem[Cand{\`e}s and Recht(2009)]{candes2009}
+E.~J. Cand{\`e}s and B.~Recht.
+\newblock Exact matrix completion via convex optimization.
+\newblock \emph{Found. Comput. Math.}, 9:\penalty0 717--772, 2009.
+\newblock \doi{10.1007/s10208-009-9045-5}.
+
+\bibitem[Cao et~al.(2021)]{cao2021}
+B.~Cao et~al.
+\newblock Metabolic dysfunction in schizophrenia: the role of thiamine and benfotiamine.
+\newblock \emph{Front. Psychiatry}, 12:\penalty0 681493, 2021.
+\newblock \doi{10.3389/fpsyt.2021.681493}.
+
+\bibitem[Chong et~al.(2007)]{chong2007}
+C.~R. Chong et~al.
+\newblock New uses for old drugs.
+\newblock \emph{Nature}, 448:\penalty0 645--646, 2007.
+\newblock \doi{10.1038/448645a}.
+
+\bibitem[Dai et~al.(2015)]{dai2015}
+W.~Dai et~al.
+\newblock Matrix factorization-based prediction of novel drug indications.
+\newblock \emph{BMC Bioinform.}, 16:\penalty0 S5, 2015.
+\newblock \doi{10.1186/1471-2105-16-S5-S5}.
+
+\bibitem[DiMasi et~al.(2003)]{dimasi2003}
+J.~A. DiMasi et~al.
+\newblock The price of innovation: new estimates of drug development costs.
+\newblock \emph{J. Health Econ.}, 22:\penalty0 151--185, 2003.
+\newblock \doi{10.1016/S0167-6296(02)00126-1}.
+
+\bibitem[Emre et~al.(2004)]{emre2004}
+M.~Emre et~al.
+\newblock Rivastigmine for dementia associated with {Parkinson's} disease.
+\newblock \emph{N. Engl. J. Med.}, 351:\penalty0 2509--2518, 2004.
+\newblock \doi{10.1056/NEJMoa041535}.
+
+\bibitem[Fu et~al.(2022)]{fu2022}
+Z.~Fu et~al.
+\newblock {MVGCN}: Multi-view graph convolutional network for drug-disease association prediction.
+\newblock \emph{Bioinformatics}, 38:\penalty0 4019--4026, 2022.
+\newblock \doi{10.1093/bioinformatics/btac388}.
+
+\bibitem[Gao et~al.(2023)]{gao2023}
+Z.~Gao et~al.
+\newblock Similarity measures-based graph co-contrastive learning for drug-disease association prediction.
+\newblock \emph{Bioinformatics}, 39:\penalty0 btad357, 2023.
+\newblock \doi{10.1093/bioinformatics/btad357}.
+
+\bibitem[Gottlieb et~al.(2011)]{gottlieb2011}
+A.~Gottlieb et~al.
+\newblock {PREDICT}: a method for inferring novel drug indications with application to personalized medicine.
+\newblock \emph{Mol. Syst. Biol.}, 7:\penalty0 496, 2011.
+\newblock \doi{10.1038/msb.2011.26}.
+
+\bibitem[Hamosh et~al.(2002)]{hamosh2002}
+A.~Hamosh et~al.
+\newblock {Online Mendelian Inheritance in Man (OMIM)}, a knowledgebase of human genes and genetic disorders.
+\newblock \emph{Nucleic Acids Res.}, 30:\penalty0 52--55, 2002.
+\newblock \doi{10.1093/nar/30.1.52}.
+
+\bibitem[Helfer et~al.(2016)]{helfer2016}
+B.~Helfer et~al.
+\newblock Efficacy and safety of antidepressants added to antipsychotics for schizophrenia: systematic review and meta-analysis.
+\newblock \emph{Am. J. Psychiatry}, 173:\penalty0 876--886, 2016.
+\newblock \doi{10.1176/appi.ajp.2016.16030335}.
+
+\bibitem[Huang et~al.(2025)]{huang2025}
+Z.~Huang et~al.
+\newblock Computational approaches for predicting drug-disease associations: a comprehensive review.
+\newblock \emph{Front. Comput. Sci.}, 19:\penalty0 195909, 2025.
+\newblock \doi{10.1007/s11704-024-40072-y}.
+
+\bibitem[Leucht et~al.(2013)]{leucht2013}
+S.~Leucht et~al.
+\newblock Comparative efficacy and tolerability of 15 antipsychotic drugs in schizophrenia: a multiple-treatments meta-analysis.
+\newblock \emph{Lancet}, 382:\penalty0 951--962, 2013.
+\newblock \doi{10.1016/S0140-6736(13)60733-3}.
+
+\bibitem[Liu et~al.(2025)]{liu2025tarm}
+T.~Liu et~al.
+\newblock Truncated arctangent rank minimization and double-strategy neighborhood constraint graph inference for drug-disease association prediction.
+\newblock \emph{J. Chem. Inf. Model.}, 65:\penalty0 2158--2172, 2025.
+\newblock \doi{10.1021/acs.jcim.4c02276}.
+
+\bibitem[Luo et~al.(2016)]{luo2016}
+H.~Luo et~al.
+\newblock Drug repositioning based on comprehensive similarity measures and {Bi-Random} walk algorithm.
+\newblock \emph{Bioinformatics}, 32:\penalty0 2664--2671, 2016.
+\newblock \doi{10.1093/bioinformatics/btw311}.
+
+\bibitem[Luo et~al.(2018)]{luo2018}
+H.~Luo et~al.
+\newblock {DRRS}: a drug repositioning recommendation system based on singular value thresholding.
+\newblock \emph{BMC Bioinform.}, 19:\penalty0 406, 2018.
+\newblock \doi{10.1186/s12859-018-2388-0}.
+
+\bibitem[Martinez et~al.(2015)]{martinez2015}
+V.~Martinez et~al.
+\newblock {DrugNet}: network-based drug-disease prioritization.
+\newblock \emph{J. Biomed. Inform.}, 53:\penalty0 85--97, 2015.
+\newblock \doi{10.1016/j.jbi.2014.10.002}.
+
+\bibitem[Meng et~al.(2022)]{meng2022}
+Y.~Meng et~al.
+\newblock {DRWBNCF}: drug repositioning based on weighted {Bayesian} neural collaborative filtering.
+\newblock \emph{Brief. Bioinform.}, 23:\penalty0 bbac001, 2022.
+\newblock \doi{10.1093/bib/bbac001}.
+
+\bibitem[Mongia et~al.(2022)Mongia, Chouzenoux, and Majumdar]{mongia2022}
+A.~Mongia, E.~Chouzenoux, and A.~Majumdar.
+\newblock Computational prediction of drug-disease association based on graph-regularized one bit matrix completion.
+\newblock \emph{IEEE/ACM Trans. Comput. Biol. Bioinform.}, 19:\penalty0 3332--3339, 2022.
+\newblock \doi{10.1109/TCBB.2021.3089170}.
+
+\bibitem[Paul et~al.(2010)]{paul2010}
+S.~M. Paul et~al.
+\newblock How to improve {R\&D} productivity.
+\newblock \emph{Nat. Rev. Drug Discov.}, 9:\penalty0 203--214, 2010.
+\newblock \doi{10.1038/nrd3078}.
+
+\bibitem[Reda et~al.(2025)Reda, Vie, and Wolkenhauer]{reda2025}
+C.~Reda, J.-J. Vie, and O.~Wolkenhauer.
+\newblock Comprehensive evaluation of pure and hybrid collaborative filtering in drug repurposing.
+\newblock \emph{Sci. Rep.}, 15:\penalty0 2711, 2025.
+\newblock \doi{10.1038/s41598-025-85927-x}.
+
+\bibitem[Saito and Rehmsmeier(2015)]{saito2015}
+T.~Saito and M.~Rehmsmeier.
+\newblock The precision-recall plot is more informative than the {ROC} plot.
+\newblock \emph{PLoS ONE}, 10:\penalty0 e0118432, 2015.
+\newblock \doi{10.1371/journal.pone.0118432}.
+
+\bibitem[Singh et~al.(2010)]{singh2010}
+S.~P. Singh et~al.
+\newblock Efficacy of antidepressants in treating the negative symptoms of chronic schizophrenia: meta-analysis.
+\newblock \emph{Br. J. Psychiatry}, 197:\penalty0 174--179, 2010.
+\newblock \doi{10.1192/bjp.bp.109.075010}.
+
+\bibitem[Steinbeck et~al.(2003)]{steinbeck2003}
+C.~Steinbeck et~al.
+\newblock The chemistry development kit ({CDK}).
+\newblock \emph{J. Chem. Inf. Comput. Sci.}, 43:\penalty0 493--500, 2003.
+\newblock \doi{10.1021/ci025584y}.
+
+\bibitem[Tiihonen et~al.(2009)]{tiihonen2009}
+J.~Tiihonen et~al.
+\newblock Lamotrigine in treatment-resistant schizophrenia: a randomized placebo-controlled crossover trial.
+\newblock \emph{Biol. Psychiatry}, 66:\penalty0 794--799, 2009.
+\newblock \doi{10.1016/j.biopsych.2009.04.010}.
+
+\bibitem[Van~Driel et~al.(2006)]{vandriel2006}
+M.~A. Van~Driel et~al.
+\newblock A text-mining analysis of the human phenome.
+\newblock \emph{Eur. J. Hum. Genet.}, 14:\penalty0 535--542, 2006.
+\newblock \doi{10.1038/sj.ejhg.5201565}.
+
+\bibitem[van Laarhoven et~al.(2011)]{vanlaarhoven2011}
+T.~van Laarhoven et~al.
+\newblock Gaussian interaction profile kernels for predicting drug-target interaction.
+\newblock \emph{Bioinformatics}, 27:\penalty0 3036--3043, 2011.
+\newblock \doi{10.1093/bioinformatics/btr500}.
+
+\bibitem[Wang et~al.(2013)]{wang2013}
+J.~Wang et~al.
+\newblock {HGBI}: heterogeneous graph based inference for drug-target interaction prediction.
+\newblock \emph{BMC Bioinform.}, 14:\penalty0 S6, 2013.
+\newblock \doi{10.1186/1471-2105-14-S14-S6}.
+
+\bibitem[Wang et~al.(2014)]{wang2014}
+J.~Wang et~al.
+\newblock Drug-disease association prediction based on heterogeneous graph inference.
+\newblock \emph{BMC Syst. Biol.}, 8:\penalty0 S4, 2014.
+\newblock \doi{10.1186/1752-0509-8-S1-S4}.
+
+\bibitem[Wishart et~al.(2006)]{wishart2006}
+D.~S. Wishart et~al.
+\newblock {DrugBank}: a comprehensive resource for in silico drug discovery.
+\newblock \emph{Nucleic Acids Res.}, 34:\penalty0 D668--D672, 2006.
+\newblock \doi{10.1093/nar/gkj067}.
+
+\bibitem[Yang et~al.(2019)]{yang2019}
+M.~Yang et~al.
+\newblock Drug repositioning based on bounded nuclear norm regularization.
+\newblock \emph{Bioinformatics}, 35:\penalty0 i455--i463, 2019.
+\newblock \doi{10.1093/bioinformatics/btz331}.
+
+\bibitem[Yang et~al.(2025)]{yang2025dnmf}
+M.~Yang et~al.
+\newblock A novel drug-disease association prediction method based on deep non-negative matrix factorization with local graph feature.
+\newblock \emph{Interdiscip. Sci. Comput. Life Sci.}, 17:\penalty0 598--613, 2025.
+\newblock \doi{10.1007/s12539-025-00733-3}.
+
+\end{thebibliography}

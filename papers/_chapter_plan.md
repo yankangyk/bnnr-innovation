@@ -10,7 +10,7 @@
 BNNR (Yang et al. 2019) treats matrix completion as a purely algebraic problem — it ignores the manifold geometry encoded in drug-drug and disease-disease similarity networks. We address this with an "inside-outside" framework:
 
 - **GBNNR** (inside): injects manifold structure into optimization via kNN graph Laplacian regularization + inner gradient descent. Improves AUPR substantially (+5% to +31% depending on data density) at negligible AUROC cost.
-- **GF-BNNR** (outside): applies a post-hoc bi-directional graph low-pass filter to enforce manifold smoothness on the completed matrix. Uniquely improves **both** AUROC and AUPR, with gains scaling dramatically on ultra-sparse data (DNdataset: +5.3% AUROC, +27.7% AUPR).
+- **GF-BNNR** (outside): applies a post-hoc bi-directional graph low-pass filter to enforce manifold smoothness on the completed matrix. Improves both AUROC and AUPR, with AUPR gains primarily from GIP similarity fusion and AUROC gains from the graph filter — particularly on ultra-sparse data (DNdataset: +5.3% AUROC, +27.7% AUPR vs. raw BNNR).
 - **RA-BNNR**: rank-adaptive β scheduling with auto-inferred parameters provides consistent AUPR gains (+6% to +35%), offering a complementary, non-manifold improvement path.
 
 Key experimental findings:
@@ -57,7 +57,7 @@ Key experimental findings:
 
 **P6 — 贡献列表 (bullet, Bioinformatics style)**
 - An inside-outside framework for manifold-aware matrix completion: internal regularization steers optimization, external filtering enforces output smoothness. The two strategies are independent, confirming they draw from the same geometric signal.
-- GF-BNNR: uniquely improves both AUROC and AUPR, with strongest gains on ultra-sparse data (+5.3% AUROC, +27.7% AUPR on DNdataset).
+- GF-BNNR: improves both AUROC and AUPR, with strongest AUROC gains on ultra-sparse data (+5.3% AUROC on DNdataset); AUPR gains primarily from GIP fusion.
 - Empirical discovery: GBNNR's benefit is driven by graph topology and inner gradient descent — λ is inert from 0 to 10⁻¹.
 - RA-BNNR: auto-inferred β scheduling provides consistent AUPR gains (+6% to +35%) at negligible AUROC cost.
 
@@ -104,9 +104,10 @@ Key experimental findings:
 - Algorithm 1: full ADMM loop with inner gradient descent
 
 **2.3.4 Critical Empirical Finding: λ-Insensitivity (including λ=0)**
-- λ-sweep from 0 to 10⁻¹: AUPR constant for fixed γ
-- At λ=0 (graph term removed), GBNNR still outperforms BNNR → inner GD alone improves solution
-- Graph topology (which edges, weighted by γ) provides additional signal independent of λ magnitude
+- λ-sweep from 0 to 10⁻²: AUPR stable for fixed γ (max within-row variation ~0.004)
+- λ=10⁻¹ degrades performance (AUPR drops to 0.258–0.283) → strong regularization forces over-smoothing
+- At λ=0 (graph term removed), GBNNR still outperforms BNNR (+0.0202 AUPR) → inner GD alone improves solution
+- Graph topology (which edges, weighted by γ) provides additional signal independent of λ magnitude for λ ≤ 10⁻²
 - GBNNR is hyperparameter-free for λ; only γ needs attention (default γ=2.0)
 
 ### 2.4 GF-BNNR: Graph-Filtered BNNR
@@ -164,7 +165,7 @@ All methods on all 3 datasets. GF-BNNR in separate batch with identical seed.
 | | GF-BNNR* | **0.9721** | **0.3157** | 0.45 | 0.38 |
 
 Key patterns:
-- GF-BNNR: **only method that improves both AUROC and AUPR**
+- GF-BNNR: improves both AUROC and AUPR (AUPR gain from GIP fusion; filter adds AUROC on sparse data)
 - RA-BNNR: consistent AUPR gains (+6% to +35%), largest AUPR on Cdataset
 - GBNNR variants nearly identical → kNN topology dominates, v3/GIP marginal
 - All improvements largest on sparsest data (DNdataset)
@@ -173,16 +174,17 @@ Key patterns:
 
 | γ \ λ | 0 | 10⁻³ | 10⁻² | 10⁻¹ |
 |-------|---|------|------|------|
-| 0.5 | 0.3258 | 0.3251 | 0.3251 | 0.3251 |
-| 1.0 | 0.3242 | 0.3242 | 0.3242 | 0.3242 |
-| 2.0 | **0.3273** | **0.3274** | **0.3274** | **0.3274** |
-| 3.0 | 0.3245 | 0.3244 | 0.3244 | 0.3244 |
+| 0.5 | **0.3273** | 0.3272 | 0.3260 | 0.2829 |
+| 1.0 | **0.3273** | 0.3272 | 0.3269 | 0.2832 |
+| 2.0 | **0.3273** | 0.3269 | **0.3312** | 0.2806 |
+| 3.0 | **0.3273** | 0.3269 | 0.3286 | 0.2577 |
 
 BNNR baseline: AUPR = 0.3071
 
-- λ inert from 0 to 10⁻¹ for each fixed γ
-- λ=0 still > BNNR (+0.0202 AUPR) → inner GD alone provides gain
-- γ=2.0 optimal: amplifies strong edges, suppresses weak ones
+- λ=0: all γ give identical AUPR (0.3273) → confirms graph term is disabled; inner GD alone provides +0.0202 over BNNR
+- λ inert from 0 to 10⁻² for each fixed γ (max variation ~0.004 within row)
+- λ=10⁻¹: **degrades** performance (AUPR drops to 0.258–0.283), contrary to earlier estimation. Strong regularization forces over-smoothing.
+- γ=2.0 optimal: best AUPR (0.3312 at λ=10⁻²)
 
 ### 3.3 Ablation Analysis (Table 3)
 
@@ -207,10 +209,12 @@ Stack < GBNNR alone → both draw from same manifold signal. Non-additivity supp
 
 ### 3.5 GF-BNNR Filter Strength Analysis
 
-- α sweep [0, 0.1, 0.3, 0.5, 0.7, 1.0]
-- Optimal α≈0.5 (Fdataset, Cdataset), α≈0.3 (DNdataset)
-- α=0 recovers BNNR; α>0 always improves (strict improvement)
-- DNdataset gains consistently largest
+- α sweep [0, 0.1, 0.3, 0.5, 0.7, 1.0] on fold 1 of all 3 datasets
+- Fdataset: α=0 optimal for AUPR (0.3157); AUPR monotonically decreases with α
+- Cdataset: α=0 optimal for AUPR (0.4090); similar monotonic decline
+- DNdataset: AUPR completely flat across α (0.3259–0.3260); AUROC dramatically improves from 0.9311 (α=0) to 0.9743 (α=1.0)
+- Key insight: GIP fusion provides the AUPR gain; graph filter primarily boosts AUROC on ultra-sparse data
+- α=0.5 is a reasonable default (near-optimal AUROC on DNdataset, minimal AUPR penalty on F/Cdatasets)
 
 ### 3.6 Computational Cost
 
@@ -233,8 +237,9 @@ Stack < GBNNR alone → both draw from same manifold signal. Non-additivity supp
 - GBNNR: larger absolute AUPR gains on denser data, zero λ tuning
 - RA-BNNR provides a third, non-manifold improvement direction
 
-### 4.2 Topology Over Strength: Why λ Doesn't Matter
-- Evidence: λ=0 still > BNNR (inner GD contribution); λ=10⁻³ to 10⁻¹ identical
+### 4.2 Topology Over Strength: Why λ Doesn't Matter (for λ ≤ 10⁻²)
+- Evidence: λ=0 still > BNNR (inner GD contribution); λ=10⁻³ to 10⁻² nearly identical
+- λ=10⁻¹ degrades performance — regularization too strong, forces over-smoothing
 - Inner GD reaches equilibrium rapidly — direction (L_aug eigenvectors) dominates magnitude
 - Practical value: GBNNR hyperparameter-free for λ; γ=2.0 is robust default
 
@@ -269,7 +274,7 @@ Stack < GBNNR alone → both draw from same manifold signal. Non-additivity supp
 
 ## INSIGHT Collection (Updated v3)
 
-1. **Topology over strength**: GBNNR's benefit is driven by (a) inner gradient descent replacing closed-form W-update, and (b) kNN graph topology (γ-weighted edges). λ is inert from 0 to 10⁻¹ — λ=0 already outperforms BNNR. This makes GBNNR effectively hyperparameter-free.
+1. **Topology over strength**: GBNNR's benefit is driven by (a) inner gradient descent replacing closed-form W-update, and (b) kNN graph topology (γ-weighted edges). λ is inert from 0 to 10⁻² and degrades at 10⁻¹ — λ=0 already outperforms BNNR (+0.0202 AUPR). This makes GBNNR effectively hyperparameter-free for λ; γ=2.0 is the recommended default.
 
 2. **Non-additivity of inside-outside**: GBNNR + GF-BNNR stack yields no extra gain → both methods draw from the same manifold signal through independent (not additive) mechanisms. The framework is a classification of strategies, not a recipe for combination.
 

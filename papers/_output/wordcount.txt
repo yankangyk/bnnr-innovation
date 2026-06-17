@@ -1,0 +1,12 @@
+
+!!! File not found or not readable: output.tex !!!
+Total
+Words in text: 0
+Words in headers: 0
+Words outside text (captions, etc.): 0
+Number of headers: 0
+Number of floats/tables/figures: 0
+Number of math inlines: 0
+Number of math displayed: 0
+
+(errors:1)
