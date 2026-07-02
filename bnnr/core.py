@@ -300,3 +300,158 @@ def BNNR_adaptive(alpha, beta, T, trIndex, tol1, tol2, maxiter, a, b,
     }
 
     return W, iter_num, info
+
+
+def BNNR_adaptive_v2(alpha, beta_init, T, trIndex, tol1, tol2, maxiter, a, b,
+                     beta_min=1.0, beta_max=50.0,
+                     warmup=None, target_rank_ratio=0.95,
+                     verbose=0):
+    """RA-BNNR v2: proportional rank-adaptive beta scheduling (eta-free).
+
+    Uses a proportional controller with auto-tuned step size to guide the
+    effective rank toward a target determined during warmup. No eta parameter
+    is needed — the step size self-calibrates from matrix dimensions.
+
+    This replaces the original direct sigma_threshold formula which was
+    unstable on large-augmented matrices where sigma_target ≈ 0 and
+    beta = c / sigma_target would clip to beta_max every iteration.
+
+    Parameters
+    ----------
+    alpha : float, data-fidelity weight (fixed).
+    beta_init : float, initial beta value.
+    T : ndarray, augmented matrix.
+    trIndex : ndarray, observation mask.
+    tol1, tol2 : float, convergence thresholds.
+    maxiter : int, maximum ADMM iterations.
+    a, b : float, value bounds.
+    beta_min, beta_max : float, safety bounds for beta.
+    warmup : int or None, warmup iterations (auto-computed if None).
+    target_rank_ratio : float, target rank = ratio * final_warmup_rank.
+    verbose : int, verbosity level.
+
+    Returns
+    -------
+    W : ndarray, recovered matrix.
+    iter_num : int, iteration count.
+    info : dict, diagnostics.
+    """
+    T = np.array(T, dtype=np.float64)
+    trIndex = np.array(trIndex, dtype=np.float64)
+    if T.shape != trIndex.shape:
+        raise ValueError("T and trIndex must have same shape")
+
+    # Auto-compute warmup: scales with matrix dimension
+    if warmup is None:
+        min_dim = min(T.shape)
+        warmup = int(5 + np.log(max(min_dim / 900.0, 1.0)) * 8)
+        warmup = min(max(warmup, 5), 20)
+
+    # Auto-compute proportional gain from target_rank scale
+    # Larger rank → smaller gain (more conservative per-step adjustment)
+    # The gain is calibrated so per-step beta change is ~1-5%
+    def _auto_gain(tr):
+        """Scale-aware proportional gain."""
+        return float(np.clip(0.08 / np.sqrt(max(tr / 100.0, 1.0)), 0.008, 0.08))
+
+    X = T.copy()
+    W = T.copy()
+    Y = T.copy()
+
+    stop1 = 1.0
+    stop2 = 1.0
+    iter_num = 0
+
+    beta_cur = float(beta_init)
+    beta_history = [beta_cur]
+    rank_history = []
+    warmup_ranks = []
+    target_rank = None
+    auto_gain = None
+    n_comp = None
+
+    T_masked = T * trIndex
+
+    while stop1 > tol1 or stop2 > tol2:
+        beta_inv = 1.0 / beta_cur
+        alpha_over_beta = alpha / beta_cur
+        alpha_sum = alpha + beta_cur
+        alpha_ratio = alpha / alpha_sum
+
+        # W-update (closed form)
+        tran = beta_inv * Y + alpha_over_beta * T_masked + X
+        W = tran - alpha_ratio * (tran * trIndex)
+        np.clip(W, a, b, out=W)
+
+        # X-update (SVT)
+        Z = W - beta_inv * Y
+        X_svt, eff_rank, sing_vals = svt_with_rank(Z, beta_inv,
+                                                    n_components=n_comp)
+        rank_history.append(eff_rank)
+
+        n_comp = int(eff_rank * 2.0)
+        if target_rank is not None:
+            n_comp = max(n_comp, target_rank + 5)
+        n_comp = max(n_comp, 10)
+        n_comp = min(n_comp, min(T.shape))
+
+        # Y-update
+        Y = Y + beta_cur * (X_svt - W)
+
+        # Convergence check
+        stop1_prev = stop1
+        norm_X = np.linalg.norm(X, 'fro')
+        stop1 = (np.linalg.norm(X_svt - X, 'fro') / norm_X
+                 if norm_X != 0 else 0.0)
+        stop2 = abs(stop1 - stop1_prev) / max(1.0, abs(stop1_prev))
+
+        X = X_svt
+        iter_num += 1
+
+        # ── Proportional rank-adaptive beta scheduling (eta-free) ──
+        if iter_num <= warmup:
+            warmup_ranks.append(eff_rank)
+        else:
+            if target_rank is None and warmup_ranks:
+                # Use the last 3 warmup ranks (more stable than full mean)
+                recent = warmup_ranks[-min(3, len(warmup_ranks)):]
+                target_rank = int(target_rank_ratio * np.mean(recent))
+                target_rank = max(target_rank, 1)
+                auto_gain = _auto_gain(target_rank)
+                if verbose >= 1:
+                    print(f"  [RA-v2] target_rank={target_rank}, "
+                          f"gain={auto_gain:.4f} "
+                          f"(warmup_end={np.mean(recent):.1f}, "
+                          f"warmup={warmup})")
+
+            if target_rank is not None and target_rank > 0 and auto_gain is not None:
+                # Proportional controller: adjust beta to push rank toward target
+                rank_err = (eff_rank - target_rank) / max(target_rank, 1)
+                # Clamp error to avoid wild swings (max ±20% per step)
+                adj = np.clip(auto_gain * rank_err, -0.20, 0.20)
+                beta_new = beta_cur * np.exp(-adj)
+                beta_cur = float(np.clip(beta_new, beta_min, beta_max))
+
+        beta_history.append(beta_cur)
+
+        if stop1 <= tol1 and stop2 <= tol2:
+            if verbose >= 1:
+                print(f"  [RA-v2] converged at iter={iter_num}, "
+                      f"beta_final={beta_cur:.3f}, rank={eff_rank}")
+            break
+
+        if iter_num >= maxiter:
+            iter_num = maxiter
+            warnings.warn(f"[RA-v2] max iter reached "
+                          f"(beta={beta_cur:.2f}, rank={eff_rank})")
+            break
+
+    info = {
+        'beta_final': float(beta_cur),
+        'beta_history': np.array(beta_history),
+        'rank_history': np.array(rank_history),
+        'target_rank': target_rank,
+        'converged': stop1 <= tol1 and stop2 <= tol2,
+    }
+
+    return W, iter_num, info

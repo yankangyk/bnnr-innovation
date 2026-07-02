@@ -336,4 +336,6 @@ def BNNR_graph_enhanced_v3(alpha, beta, T, trIndex, tol1, tol2, maxiter, a, b,
             warnings.warn("reach maximum iteration")
             break
 
+    info["rank_history"] = np.array(info["rank_history"])
+
     return W, iter_num, info

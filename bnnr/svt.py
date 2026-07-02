@@ -54,9 +54,11 @@ def svt_with_rank(Y, x, n_components=None):
         n_components = min(2000, n)
 
     if n_components is not None and n_components < n:
+        # Power iterations: more for large matrices to ensure accuracy
+        _n_iter = 4 if n > 1000 else 2
         try:
             U, s, Vt = randomized_svd(Y, n_components=n_components,
-                                      n_iter=2, random_state=42)
+                                      n_iter=_n_iter, random_state=42)
             if s[-1] <= x:
                 s_new = np.maximum(s - x, 0.0)
                 eff_rank = int(np.sum(s_new > 0))
