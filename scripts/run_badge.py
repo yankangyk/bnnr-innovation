@@ -1,6 +1,6 @@
 """
-BADGE Experiment — Bayesian Adaptive Drug-disease Graph Enhancement
-====================================================================
+BADGE Experiment — Bi-iterative Adaptive Drug-disease Graph Enhancement
+========================================================================
 
 Compares BADGE against BNNR, GBNNR, and GF-BNNR on 3 benchmark datasets.
 
@@ -13,7 +13,7 @@ Experiments:
 
 Key validation criteria:
   (a) E3 >= E2 on moderate-density data (Fdataset, Cdataset)
-  (b) E3 == E2 on ultra-sparse data (DNdataset) — shrinkage protects against degradation
+  (b) E3 >= E2 on ultra-sparse data (DNdataset)
   (c) E4 ~ E3  — convergence within 2 iterations
 
 Usage:
@@ -69,8 +69,6 @@ BADGE_CFG = {
     "graph_alpha": 0.5,
     "w_gip": 0.3,
     "gamma_gip": 1.0,
-    "shrinkage_mu": -3.0,
-    "shrinkage_tau": 0.3,
 }
 
 DATASETS = {
@@ -114,8 +112,6 @@ def summarize_fold_results(df):
             summary[f"{col}_std"] = df[col].std(ddof=1) if len(df) > 1 else 0.0
     if "total_bnnr_iter" in df.columns:
         summary["total_bnnr_iter_mean"] = df["total_bnnr_iter"].mean()
-    if "shrinkage_lambda" in df.columns:
-        summary["shrinkage_lambda_mean"] = df["shrinkage_lambda"].mean()
     return summary
 
 
@@ -164,15 +160,12 @@ def run_BADGE_n(Wrr, Wdd, Wdr, matDR, n_iter):
         graph_alpha=BADGE_CFG["graph_alpha"],
         gamma_gip=BADGE_CFG["gamma_gip"], w_gip=BADGE_CFG["w_gip"],
         n_iter=n_iter,
-        shrinkage_mu=BADGE_CFG["shrinkage_mu"],
-        shrinkage_tau=BADGE_CFG["shrinkage_tau"],
         tol1=TOL1, tol2=TOL2, maxiter=MAXITER, a=A_BOUND, b=B_BOUND,
         verbose=0)
     total_bnnr_iter = sum(h["bnnr_iter"] for h in history)
     extra = {
         "total_bnnr_iter": total_bnnr_iter,
         "n_iter": n_iter,
-        "shrinkage_lambda": history[0]["shrinkage_lambda"],
         "density": history[0]["density"],
         "n_completed": len(history),
     }
@@ -186,13 +179,10 @@ def run_ABL_noGIP(Wrr, Wdd, Wdr, matDR):
         graph_alpha=BADGE_CFG["graph_alpha"],
         gamma_gip=BADGE_CFG["gamma_gip"], w_gip=0.0,
         n_iter=2,
-        shrinkage_mu=BADGE_CFG["shrinkage_mu"],
-        shrinkage_tau=BADGE_CFG["shrinkage_tau"],
         tol1=TOL1, tol2=TOL2, maxiter=MAXITER, a=A_BOUND, b=B_BOUND,
         verbose=0)
     total_bnnr_iter = sum(h["bnnr_iter"] for h in history)
     extra = {"total_bnnr_iter": total_bnnr_iter, "n_iter": 2,
-             "shrinkage_lambda": history[0]["shrinkage_lambda"],
              "density": history[0]["density"]}
     return M_final, total_bnnr_iter, extra
 
@@ -204,31 +194,10 @@ def run_ABL_noFilter(Wrr, Wdd, Wdr, matDR):
         graph_alpha=0.0,
         gamma_gip=BADGE_CFG["gamma_gip"], w_gip=BADGE_CFG["w_gip"],
         n_iter=2,
-        shrinkage_mu=BADGE_CFG["shrinkage_mu"],
-        shrinkage_tau=BADGE_CFG["shrinkage_tau"],
         tol1=TOL1, tol2=TOL2, maxiter=MAXITER, a=A_BOUND, b=B_BOUND,
         verbose=0)
     total_bnnr_iter = sum(h["bnnr_iter"] for h in history)
     extra = {"total_bnnr_iter": total_bnnr_iter, "n_iter": 2,
-             "shrinkage_lambda": history[0]["shrinkage_lambda"],
-             "density": history[0]["density"]}
-    return M_final, total_bnnr_iter, extra
-
-
-def run_ABL_noShrink(Wrr, Wdd, Wdr, matDR):
-    """A3: Ablate Bayesian shrinkage. lambda=1, full trust empirical GIP."""
-    M_final, history = BADGE(
-        Wrr, Wdd, matDR, alpha=ALPHA, beta=BETA,
-        graph_alpha=BADGE_CFG["graph_alpha"],
-        gamma_gip=BADGE_CFG["gamma_gip"], w_gip=BADGE_CFG["w_gip"],
-        n_iter=2,
-        shrinkage_mu=-10.0,               # forces λ ≈ 1 for all datasets
-        shrinkage_tau=BADGE_CFG["shrinkage_tau"],
-        tol1=TOL1, tol2=TOL2, maxiter=MAXITER, a=A_BOUND, b=B_BOUND,
-        verbose=0)
-    total_bnnr_iter = sum(h["bnnr_iter"] for h in history)
-    extra = {"total_bnnr_iter": total_bnnr_iter, "n_iter": 2,
-             "shrinkage_lambda": history[0]["shrinkage_lambda"],
              "density": history[0]["density"]}
     return M_final, total_bnnr_iter, extra
 
@@ -240,7 +209,6 @@ EXPERIMENTS_QUICK = {
     "E3_BADGE_n2":   lambda w: run_BADGE_n(*w, n_iter=2),
     "A1_noGIP":      lambda w: run_ABL_noGIP(*w),
     "A2_noFilter":   lambda w: run_ABL_noFilter(*w),
-    "A3_noShrink":   lambda w: run_ABL_noShrink(*w),
 }
 
 EXPERIMENTS_FULL = {
@@ -251,7 +219,6 @@ EXPERIMENTS_FULL = {
     "E4_BADGE_n3":   lambda w: run_BADGE_n(*w, n_iter=3),
     "A1_noGIP":      lambda w: run_ABL_noGIP(*w),
     "A2_noFilter":   lambda w: run_ABL_noFilter(*w),
-    "A3_noShrink":   lambda w: run_ABL_noShrink(*w),
 }
 
 
@@ -343,8 +310,6 @@ def run_experiments(resume=False, quick=False):
 
                 elapsed = time.time() - tic
                 extra_str = ""
-                if "shrinkage_lambda" in row:
-                    extra_str += f" lambda={row['shrinkage_lambda']:.4f}"
                 if "n_completed" in row:
                     extra_str += f" n_iter={row['n_completed']}/{row['n_iter']}"
                 print(f"    Fold {fold_id:02d}: AUROC={row['AUROC']:.4f}, "
