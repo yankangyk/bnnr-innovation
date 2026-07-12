@@ -75,20 +75,20 @@ METHOD_COLOR = {
 # ===========================================================================
 AUPR_MEAN = {
     "DNdataset": np.array([0.2564, 0.2539, 0.3166, 0.3207]),
-    "Fdataset":  np.array([0.3061, 0.3199, 0.3153, 0.3233]),
-    "Cdataset":  np.array([0.2772, 0.4006, 0.3958, 0.4051]),
+    "Fdataset":  np.array([0.3061, 0.3199, 0.3153, 0.3210]),
+    "Cdataset":  np.array([0.2772, 0.4006, 0.3958, 0.4050]),
 }
 AUPR_SD = {
     "DNdataset": np.array([0.1345, 0.1331, 0.0207, 0.0227]),
-    "Fdataset":  np.array([0.0240, 0.0273, 0.0251, 0.0280]),
-    "Cdataset":  np.array([0.1212, 0.0198, 0.0195, 0.0215]),
+    "Fdataset":  np.array([0.0240, 0.0273, 0.0251, 0.0254]),
+    "Cdataset":  np.array([0.1212, 0.0198, 0.0195, 0.0200]),
 }
 
 # BADGE convergence: N=1 (=GF-BNNR), N=2, N=3 — with SD
 CONV_AUPR = {
     "DNdataset": [(0.3166, 0.0207), (0.3207, 0.0227), (0.3211, 0.0219)],
-    "Fdataset":  [(0.3153, 0.0251), (0.3233, 0.0280), (0.3199, 0.0287)],
-    "Cdataset":  [(0.3958, 0.0195), (0.4051, 0.0215), (0.4037, 0.0227)],
+    "Fdataset":  [(0.3153, 0.0251), (0.3210, 0.0254), (0.3190, 0.0271)],
+    "Cdataset":  [(0.3958, 0.0195), (0.4050, 0.0200), (0.4039, 0.0200)],
 }
 
 # Shrinkage weights — VERIFIED from shrinkage_lambda_mean in summary.json
@@ -192,14 +192,13 @@ def fig1_framework():
             fontsize=8.5, color=C_GRAY, ha="center", fontweight="bold",
             style="italic")
 
-    # Fused similarity -> BNNR -> filter
-    box(0.6, 8.4, 2.6, 1.4, "Fused $\\tilde{\\mathbf{S}}$\n$w\\mathbf{G}+(1-w)\\mathbf{S}$",
+    # Fused similarity -> Joint ADMM (Plan A: embedded graph regularization)
+    box(0.6, 8.4, 3.0, 1.4, "Fused $\\tilde{\\mathbf{S}}$\n$w\\mathbf{G}+(1-w)\\mathbf{S}$",
         C_GIP, ec="#9DB8D8", fs=7)
-    box(3.7, 8.4, 2.6, 1.4, "BNNR\nADMM + SVT", C_BNNR, ec="#BBB", fs=7.5)
-    box(6.8, 8.4, 2.6, 1.4, "Graph Filter\n$(\\mathbf{I}+\\alpha_f\\mathbf{L})^{-1}$",
-        C_FILT, ec="#E0C090", fs=7)
-    arrow(3.2, 9.1, 3.7, 9.1)
-    arrow(6.3, 9.1, 6.8, 9.1)
+    box(4.1, 8.4, 5.3, 1.4,
+        "Joint ADMM: $\\|\\mathbf{M}\\|_* + \\frac{\\alpha}{2}\\|\\mathcal{P}_\\Omega(\\mathbf{M}-\\mathbf{A})\\|^2 + \\gamma\\,\\mathrm{tr}(\\mathbf{M}^T\\mathbf{L}\\mathbf{M})$",
+        C_CORE, ec=C_BADGE, lw=2.5, fs=6.2, bold=True, tc=C_BLACK)
+    arrow(3.6, 9.1, 4.1, 9.1)
     arrow(2.6, 11.0, 1.9, 9.8)
 
     # M_cur output
@@ -241,17 +240,16 @@ def fig1_framework():
     legend_items = [
         ("Input",          C_IN,   C_GRAY),
         ("GIP module",     C_GIP,  "#9DB8D8"),
-        ("BNNR ADMM",      C_BNNR, "#BBB"),
-        ("Graph filter",   C_FILT, "#E0C090"),
+        ("Joint ADMM",     C_CORE, C_BADGE),
         ("Core innovation", C_CORE, C_BADGE),
     ]
     for i, (lbl, fc, ec) in enumerate(legend_items):
-        x0 = 0.5 + i * 1.85
-        rect = FancyBboxPatch((x0, 0.6), 1.7, 0.6,
+        x0 = 0.5 + i * 2.4
+        rect = FancyBboxPatch((x0, 0.6), 2.1, 0.6,
                               boxstyle="round,pad=0.05",
                               facecolor=fc, edgecolor=ec, linewidth=1.0, zorder=2)
         ax.add_patch(rect)
-        ax.text(x0 + 0.85, 0.9, lbl, fontsize=6, ha="center", va="center",
+        ax.text(x0 + 1.05, 0.9, lbl, fontsize=6.5, ha="center", va="center",
                 fontweight="bold" if "Core" in lbl else "normal")
 
     fig.tight_layout(pad=0.4)
