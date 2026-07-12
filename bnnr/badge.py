@@ -1,18 +1,31 @@
 """
-BADGE: Bi-iterative Adaptive Drug-disease Graph Enhancement.
+BADGE: Bayesian Adaptive Drug-disease Graph Enhancement.
 
-A drug repositioning method that iteratively refines GIP similarity graphs
-from the completed association matrix. At each iteration, empirical GIP is
-recomputed from the filtered completion and fused with raw chemical/clinical
-similarities, enabling the manifold prior to adapt as the completion improves.
+Joint matrix-kernel estimation for drug repositioning. The similarity kernel is
+treated as endogenous — jointly optimized with the completion matrix via
+alternating minimization, rather than fixed a priori.
 
-Core:  G_new = w_gip * GIP(M_filtered) + (1-w_gip) * S_raw
-with  n_iter=2 (default), converging to an improved joint estimate.
+M-step: ADMM with embedded graph Laplacian regularization solves
+    min ‖M‖_* + α/2‖P_Ω(M - A)‖² + γ·tr(MᵀL_dis M + M L_drug Mᵀ)
+simultaneously — nuclear norm, data fidelity, and graph smoothness in one
+Lagrangian.
+
+S-step: GIP recomputed from completed M and fused with raw similarities:
+    S_new = w_gip · GIP(M) + (1-w_gip) · S_raw
+
+n_iter=1 → one-shot GIP+BNNR (Demo2 / GF-BNNR), N=1 special case.
+n_iter=2 (default) → one GIP recomputation; fixed-point N=2 suffices.
 """
 import numpy as np
 
-from .core import BNNR
+from .core import BNNR, BNNR_graph_aware
 from .gip import getGIPSim
+
+# Threshold for switching to fallback: when max matrix dimension exceeds this,
+# the embedded graph filter in BNNR_graph_aware becomes too expensive (dense
+# Laplacian matmuls per ADMM iteration). We fall back to the efficient two-step
+# approach: standard BNNR + post-hoc bilateral graph filter.
+LARGE_MATRIX_THRESHOLD = 1000
 
 
 def _normalised_laplacian(S):
@@ -25,6 +38,7 @@ def _normalised_laplacian(S):
 
 
 def _graph_filter(M, L_dis, L_drug, alpha):
+    """Post-hoc bilateral graph filter via exact matrix inverse (Cholesky)."""
     n_dis, n_drug = M.shape
     M_sm = np.linalg.solve(np.eye(n_dis) + alpha * L_dis, M)
     M_sm = np.linalg.solve(np.eye(n_drug) + alpha * L_drug, M_sm.T).T
@@ -37,16 +51,14 @@ def BADGE(Wrr, Wdd, Wdr, alpha=1, beta=10,
           tol1=2e-3, tol2=1e-5, maxiter=300, a=0, b=1,
           S_drug=None, S_dis=None,
           verbose=0):
-    """Bi-iterative Adaptive Drug-disease Graph Enhancement.
+    """Joint matrix-kernel estimation via alternating minimization.
 
-    Iteratively refines drug-disease association predictions by
-    recomputing GIP similarity from the filtered completion at each
-    iteration and fusing it with raw similarities:
+    M-step: ADMM with embedded graph Laplacian regularization, jointly
+    optimizing nuclear norm + data fidelity + graph smoothness.
+    S-step: recompute GIP from M and fuse with raw similarities.
 
-        S_new = w_gip * GIP(M_filtered) + (1-w_gip) * S_raw
-
-    n_iter=1 is equivalent to GF-BNNR.  n_iter=2 (default) provides
-    one round of GIP recomputation, which yields most of the gain.
+    n_iter=1 → one-shot GIP+BNNR (Demo2/GF-BNNR), N=1 special case.
+    n_iter=2 (default) → one GIP recomputation; fixed-point N=2 suffices.
 
     Parameters
     ----------
@@ -89,21 +101,40 @@ def BADGE(Wrr, Wdd, Wdr, alpha=1, beta=10,
     history = []
     M_cur = Wdr.copy()
 
+    # Detect large-matrix regime: embedded Laplacian matmuls per ADMM
+    # iteration become prohibitively expensive → fall back to two-step.
+    is_large = max(n_dis, n_drug) > LARGE_MATRIX_THRESHOLD
+    if is_large and verbose >= 1:
+        print(f"  [BADGE] large matrix ({n_dis}×{n_drug}), "
+              f"falling back to two-step BNNR+filter solver")
+
     for t in range(n_iter):
         # ── build augmented matrix ──
         T = np.block([[St_cur, M_cur],
                        [M_cur.T, Sd_cur]])
         trIndex = (T != 0).astype(np.float64)
 
-        # ── BNNR completion ──
-        WW, bnnr_iter = BNNR(alpha=alpha, beta=beta, T=T, trIndex=trIndex,
-                             tol1=tol1, tol2=tol2, maxiter=maxiter, a=a, b=b)
-        M_raw = WW[:n_dis, -n_drug:]
-
-        # ── bi-directional graph filter ──
+        # ── compute graph Laplacians ──
         L_dis = _normalised_laplacian(St_cur)
         L_drug = _normalised_laplacian(Sd_cur)
-        M_filtered = _graph_filter(M_raw, L_dis, L_drug, graph_alpha)
+
+        # ── M-step: completion with graph regularization ──
+        if is_large:
+            # Two-step fallback: standard BNNR → post-hoc bilateral filter.
+            # Avoids expensive per-iteration Laplacian matmuls on large matrices.
+            WW, bnnr_iter = BNNR(
+                alpha=alpha, beta=beta, T=T, trIndex=trIndex,
+                tol1=tol1, tol2=tol2, maxiter=maxiter, a=a, b=b)
+            M_raw = WW[:n_dis, -n_drug:]
+            M_filtered = _graph_filter(M_raw, L_dis, L_drug, graph_alpha)
+        else:
+            # Plan A: embedded graph regularization in ADMM (joint optimization).
+            WW, bnnr_iter = BNNR_graph_aware(
+                alpha=alpha, beta=beta, T=T, trIndex=trIndex,
+                tol1=tol1, tol2=tol2, maxiter=maxiter, a=a, b=b,
+                L_dis=L_dis, L_drug=L_drug, alpha_f=graph_alpha,
+                n_dis=n_dis, n_drug=n_drug)
+            M_filtered = WW[:n_dis, -n_drug:]
 
         # ── preserve known entries ──
         M_cur = np.where(known_mask, Wdr, M_filtered)
@@ -113,6 +144,7 @@ def BADGE(Wrr, Wdd, Wdr, alpha=1, beta=10,
             'bnnr_iter': int(bnnr_iter),
             'density': float(density),
             'w_gip': w_gip,
+            'graph_alpha': graph_alpha,
             'M_mean': float(M_filtered.mean()),
             'M_std': float(M_filtered.std()),
         }

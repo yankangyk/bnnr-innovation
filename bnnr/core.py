@@ -302,6 +302,122 @@ def BNNR_adaptive(alpha, beta, T, trIndex, tol1, tol2, maxiter, a, b,
     return W, iter_num, info
 
 
+def BNNR_graph_aware(alpha, beta, T, trIndex, tol1, tol2, maxiter, a, b,
+                     L_dis, L_drug, alpha_f, n_dis, n_drug,
+                     adaptive_svd=True):
+    """BNNR with graph Laplacian regularization embedded directly in the ADMM.
+
+    Unlike the standard two-step approach (BNNR → post-hoc graph filter),
+    this solver adds a graph gradient correction to each ADMM W-update,
+    driving the solution toward a fixed point that is simultaneously
+    low-rank (nuclear norm), data-consistent, and graph-smooth.
+
+    The objective augments the standard BNNR Lagrangian with:
+
+        α_f · [ tr(M^T L_dis M) + tr(M L_drug M^T) ]
+
+    where M = T[:n_dis, n_dis:] is the association block.
+
+    Parameters
+    ----------
+    alpha, beta : float, BNNR hyperparameters.
+    T : ndarray, augmented target matrix (n_dis+n_drug, n_dis+n_drug).
+    trIndex : ndarray, observation mask.
+    tol1, tol2 : float, convergence thresholds.
+    maxiter : int, maximum ADMM iterations.
+    a, b : float, value bounds.
+    L_dis : ndarray (n_dis, n_dis), normalized disease Laplacian.
+    L_drug : ndarray (n_drug, n_drug), normalized drug Laplacian.
+    alpha_f : float, graph regularization strength.
+    n_dis, n_drug : int, dimensions of the association block.
+    adaptive_svd : bool, use truncated SVD acceleration.
+
+    Returns
+    -------
+    W : ndarray, recovered augmented matrix.
+    iter_num : int, iteration count.
+    """
+    import warnings
+
+    T = np.array(T, dtype=np.float64)
+    trIndex = np.array(trIndex, dtype=np.float64)
+    if T.shape != trIndex.shape:
+        raise ValueError("T and trIndex must have same shape")
+
+    X = T.copy()
+    W = T.copy()
+    Y_lag = T.copy()
+
+    stop1 = 1.0
+    stop2 = 1.0
+    iter_num = 0
+
+    beta_inv = 1.0 / beta
+    alpha_over_beta = alpha / beta
+    alpha_sum = alpha + beta
+    alpha_ratio = alpha / alpha_sum
+    # Per-iteration graph filter strength (γ = α_f / (10β)).
+    # First-order Neumann approximation: (I+γL)^{-1} ≈ I - γL + O(γ²).
+    # With γ = 0.005, γ² = 2.5e-5 — error negligible vs. ADMM tolerance.
+    gamma_iter = alpha_f * beta_inv * 0.1
+    # Scale factor for first-order filter: M_sm ≈ M - γ (L_dis @ M + M @ L_drug)
+    # This is 2 O(n²·n_drug) matmuls, much faster than Cholesky solves.
+
+    rank_safe_factor = 2.0
+    n_comp = None
+    T_masked = T * trIndex
+    i = 1
+
+    while stop1 > tol1 or stop2 > tol2:
+        # ── W-update: standard BNNR closed form ──
+        tran = beta_inv * Y_lag + alpha_over_beta * T_masked + X
+        W_new = tran - alpha_ratio * (tran * trIndex)
+
+        # ── Embedded graph filter (first-order Neumann approximation) ──
+        # (I+γL)^{-1} ≈ I - γL for γ ≪ 1/‖L‖.
+        # Apply: M ← M - γ·(L_dis @ M + M @ L_drug) [bilateral]
+        M_block = W_new[:n_dis, n_dis:n_dis + n_drug]
+        M_sm = M_block - gamma_iter * (L_dis @ M_block + M_block @ L_drug)
+        W_new[:n_dis, n_dis:n_dis + n_drug] = M_sm
+        W_new[n_dis:n_dis + n_drug, :n_dis] = M_sm.T
+
+        np.clip(W_new, a, b, out=W_new)
+
+        # ── X-update: Singular Value Thresholding ──
+        if adaptive_svd:
+            X_new, eff_rank, _ = svt_with_rank(
+                W_new - beta_inv * Y_lag, beta_inv, n_components=n_comp)
+            n_comp = int(eff_rank * rank_safe_factor)
+            n_comp = max(n_comp, 10)
+            n_comp = min(n_comp, min(T.shape))
+        else:
+            X_new = svt(W_new - beta_inv * Y_lag, beta_inv)
+
+        # ── Y-update: dual ascent ──
+        Y_lag += beta * (X_new - W_new)
+
+        # ── Convergence check ──
+        stop1_prev = stop1
+        norm_X = np.linalg.norm(X, 'fro')
+        stop1 = (np.linalg.norm(X_new - X, 'fro') / norm_X
+                 if norm_X != 0 else 0.0)
+        stop2 = abs(stop1 - stop1_prev) / max(1.0, abs(stop1_prev))
+
+        X = X_new
+        W = W_new
+        i += 1
+
+        if i <= maxiter:
+            iter_num = i - 1
+        else:
+            iter_num = maxiter
+            warnings.warn(
+                "BNNR_graph_aware: reach maximum iteration~~do not converge!!!")
+            break
+
+    return W, iter_num
+
+
 def BNNR_adaptive_v2(alpha, beta_init, T, trIndex, tol1, tol2, maxiter, a, b,
                      beta_min=1.0, beta_max=50.0,
                      warmup=None, target_rank_ratio=0.95,

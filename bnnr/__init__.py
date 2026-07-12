@@ -1,7 +1,7 @@
 # BADGE — Bayesian Adaptive Drug-disease Graph Enhancement
 # Integrates: BNNR, RA-BNNR, GBNNR, GBNNR-v3, GF-BNNR, BADGE
 
-from .core import BNNR, BNNR_adaptive, infer_ra_params
+from .core import BNNR, BNNR_adaptive, BNNR_graph_aware, infer_ra_params
 from .graph import (BNNR_graph, BNNR_graph_enhanced_v3,
                      build_knn_graph, normalized_laplacian,
                      normalized_laplacian_sparse)
