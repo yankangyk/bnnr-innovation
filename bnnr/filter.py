@@ -14,16 +14,17 @@ from .core import BNNR
 from .gip import getGIPSim
 
 
-def _normalised_laplacian(S):
+def normalised_laplacian(S):
     """L = I - D^{-1/2} S D^{-1/2}  (symmetric normalised Laplacian)."""
     n = S.shape[0]
     d = np.maximum(S.sum(axis=1), 1e-12)
     d_inv_sqrt = 1.0 / np.sqrt(d)
     S_norm = d_inv_sqrt[:, None] * S * d_inv_sqrt[None, :]
-    return np.eye(n) - S_norm
+    L = np.eye(n) - S_norm
+    return np.nan_to_num(L, nan=0.0, posinf=0.0, neginf=0.0)
 
 
-def _graph_filter(M, L_dis, L_drug, alpha):
+def graph_filter(M, L_dis, L_drug, alpha):
     """Bi-directional graph low-pass filter."""
     n_dis, n_drug = M.shape
     M_sm = np.linalg.solve(np.eye(n_dis) + alpha * L_dis, M)
@@ -77,8 +78,8 @@ def GF_BNNR(Wrr, Wdd, Wdr, alpha=1, beta=10,
     M_bnnr = WW[:n_dis, -n_drug:]
 
     # Graph filtering
-    L_dis = _normalised_laplacian(S_dis)
-    L_drug = _normalised_laplacian(S_drug)
-    M_filtered = _graph_filter(M_bnnr, L_dis, L_drug, graph_alpha)
+    L_dis = normalised_laplacian(S_dis)
+    L_drug = normalised_laplacian(S_drug)
+    M_filtered = graph_filter(M_bnnr, L_dis, L_drug, graph_alpha)
 
     return M_filtered, M_bnnr, iter_num

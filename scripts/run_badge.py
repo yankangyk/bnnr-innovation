@@ -24,13 +24,17 @@ Usage:
 
 import argparse
 import os
+import sys
 import time
 import json
 import numpy as np
 import pandas as pd
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, BASE_DIR)
+
 from bnnr import (getKfoldCrossValidMatIndSet, getPerfMetricROCcompute,
-                   BNNR, BNNR_graph_enhanced_v3,
+                   BNNR, GBNNR,
                    GF_BNNR, BADGE,
                    getGIPSim,
                    compute_topk_metrics,
@@ -38,7 +42,6 @@ from bnnr import (getKfoldCrossValidMatIndSet, getPerfMetricROCcompute,
                    build_augmented_matrix, mask_test_entries)
 
 # ── Paths ────────────────────────────────────────────────────────────────────
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATASET_DIR = os.path.join(BASE_DIR, "data")
 RESULT_DIR = os.path.join(BASE_DIR, "Results", "BADGE")
 
@@ -134,7 +137,7 @@ def run_E0_BNNR(Wrr, Wdd, Wdr, matDR):
 
 def run_E1_GBNNR(Wrr, Wdd, Wdr, matDR):
     T, trIndex = build_augmented_matrix(Wrr, Wdd, matDR)
-    WW, iter_num, _info = BNNR_graph_enhanced_v3(
+    WW, iter_num, _info = GBNNR(
         alpha=ALPHA, beta=BETA, T=T, trIndex=trIndex,
         tol1=TOL1, tol2=TOL2, maxiter=MAXITER, a=A_BOUND, b=B_BOUND,
         Wrr_orig=Wrr, Wdd_orig=Wdd, n_drug=Wrr.shape[0],

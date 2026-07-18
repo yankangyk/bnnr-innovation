@@ -19,6 +19,7 @@ n_iter=2 (default) → one GIP recomputation; fixed-point N=2 suffices.
 import numpy as np
 
 from .core import BNNR, BNNR_graph_aware
+from .filter import normalised_laplacian, graph_filter
 from .gip import getGIPSim
 
 # Threshold for switching to fallback: when max matrix dimension exceeds this,
@@ -26,23 +27,6 @@ from .gip import getGIPSim
 # Laplacian matmuls per ADMM iteration). We fall back to the efficient two-step
 # approach: standard BNNR + post-hoc bilateral graph filter.
 LARGE_MATRIX_THRESHOLD = 1000
-
-
-def _normalised_laplacian(S):
-    n = S.shape[0]
-    d = np.maximum(S.sum(axis=1), 1e-12)
-    d_inv_sqrt = 1.0 / np.sqrt(d)
-    S_norm = d_inv_sqrt[:, None] * S * d_inv_sqrt[None, :]
-    L = np.eye(n) - S_norm
-    return np.nan_to_num(L, nan=0.0, posinf=0.0, neginf=0.0)
-
-
-def _graph_filter(M, L_dis, L_drug, alpha):
-    """Post-hoc bilateral graph filter via exact matrix inverse (Cholesky)."""
-    n_dis, n_drug = M.shape
-    M_sm = np.linalg.solve(np.eye(n_dis) + alpha * L_dis, M)
-    M_sm = np.linalg.solve(np.eye(n_drug) + alpha * L_drug, M_sm.T).T
-    return np.clip(M_sm, 0, 1)
 
 
 def BADGE(Wrr, Wdd, Wdr, alpha=1, beta=10,
@@ -115,8 +99,8 @@ def BADGE(Wrr, Wdd, Wdr, alpha=1, beta=10,
         trIndex = (T != 0).astype(np.float64)
 
         # ── compute graph Laplacians ──
-        L_dis = _normalised_laplacian(St_cur)
-        L_drug = _normalised_laplacian(Sd_cur)
+        L_dis = normalised_laplacian(St_cur)
+        L_drug = normalised_laplacian(Sd_cur)
 
         # ── M-step: completion with graph regularization ──
         if is_large:
@@ -126,7 +110,7 @@ def BADGE(Wrr, Wdd, Wdr, alpha=1, beta=10,
                 alpha=alpha, beta=beta, T=T, trIndex=trIndex,
                 tol1=tol1, tol2=tol2, maxiter=maxiter, a=a, b=b)
             M_raw = WW[:n_dis, -n_drug:]
-            M_filtered = _graph_filter(M_raw, L_dis, L_drug, graph_alpha)
+            M_filtered = graph_filter(M_raw, L_dis, L_drug, graph_alpha)
         else:
             # Plan A: embedded graph regularization in ADMM (joint optimization).
             WW, bnnr_iter = BNNR_graph_aware(

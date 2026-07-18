@@ -4,8 +4,8 @@ BNNR_graph.py — Graph-Regularized BNNR variants.
 Contains:
   - build_knn_graph(): confidence-weighted kNN graph construction
   - normalized_laplacian() / normalized_laplacian_sparse(): graph Laplacians
-  - BNNR_graph(): basic graph-regularized BNNR (GBNNR)
-  - BNNR_graph_enhanced_v3(): GBNNR-v3 with gamma confidence + block-wise weights
+  - BNNR_graph(): basic graph-regularized BNNR
+  - GBNNR(): graph-regularized BNNR with gamma confidence + block-wise weights
 """
 import numpy as np
 import warnings
@@ -209,7 +209,7 @@ def BNNR_graph(alpha, beta, T, trIndex, tol1, tol2, maxiter, a, b,
     return W, iter_num, info
 
 
-def BNNR_graph_enhanced_v3(alpha, beta, T, trIndex, tol1, tol2, maxiter, a, b,
+def GBNNR(alpha, beta, T, trIndex, tol1, tol2, maxiter, a, b,
                            Wrr_orig=None, Wdd_orig=None, n_drug=None,
                            knn_k=12, gamma_graph=2.0,
                            lambda_r=1e-3, lambda_d=1e-3,
@@ -217,7 +217,7 @@ def BNNR_graph_enhanced_v3(alpha, beta, T, trIndex, tol1, tol2, maxiter, a, b,
                            inner_steps=10, lr=1e-2,
                            X_init=None, verbose=0):
     """
-    Enhanced GBNNR v3 — solves the AUROC-AUPR trade-off.
+    GBNNR — graph-regularized BNNR with adaptive block-wise regularization.
 
     Key mechanisms:
       1. Gamma > 1: suppresses weak-edge noise in kNN graph
