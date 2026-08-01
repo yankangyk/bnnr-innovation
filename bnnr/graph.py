@@ -109,7 +109,7 @@ def BNNR_graph(alpha, beta, T, trIndex, tol1, tol2, maxiter, a, b,
     info : dict, convergence/rank history
     """
     T = np.array(T, dtype=np.float64)
-    trIndex = np.array(trIndex, dtype=np.float64)
+    trIndex = np.asarray(trIndex, dtype=bool)
     if T.shape != trIndex.shape:
         raise ValueError("T and trIndex must have same shape")
 
@@ -249,7 +249,7 @@ def GBNNR(alpha, beta, T, trIndex, tol1, tol2, maxiter, a, b,
     info : dict, convergence/rank history
     """
     T = np.array(T, dtype=np.float64)
-    trIndex = np.array(trIndex, dtype=np.float64)
+    trIndex = np.asarray(trIndex, dtype=bool)
     m, n = T.shape
 
     if n_drug is None:

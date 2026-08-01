@@ -3212,8 +3212,13 @@ xscale=\@OrigHeightRecip*\@curXheight,transform shape]
 %\WarningFilter{latexfont}{Font shape}
 %\WarningFilter{latexfont}{Some font shapes}
 
-\immediate\write18{texcount -total -inc \jobname.tex > wordcount.txt}
-\newcommand{\wordcount}{\input{wordcount.txt}}
+% The \write18 shell-escape call below is incompatible with Overleaf and most
+% CI build systems where --shell-escape is disabled or texcount is unavailable.
+% Since the authoring template never displays \wordcount in the rendered PDF,
+% we comment out the shell-escape and provide a safe fallback.
+% \immediate\write18{texcount -total -inc \jobname.tex > wordcount.txt}
+% \newcommand{\wordcount}{\input{wordcount.txt}}
+\newcommand{\wordcount}{[word count not available]}
 
 %% End here %%
 

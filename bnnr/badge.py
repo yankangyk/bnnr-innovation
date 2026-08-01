@@ -1,26 +1,29 @@
 """
-BADGE: Bayesian Adaptive Drug-disease Graph Enhancement.
+SGRMC: Sparsified Graph-Regularized Matrix Completion.
 
-Joint matrix-kernel estimation for drug repositioning. The similarity kernel is
-treated as endogenous — jointly optimized with the completion matrix via
-alternating minimization, rather than fixed a priori.
+Single-pass matrix completion with three components:
+  1. Density-adaptive KNN graph sparsification (k=5 for ρ>0.1%, k=50 otherwise)
+  2. Graph Laplacian regularization (Plan A: embedded Neumann ≤1000; Plan B: Cholesky >1000)
+  3. Single-pass — no GIP fusion, no alternating iterations.
 
 M-step: ADMM with embedded graph Laplacian regularization solves
     min ‖M‖_* + α/2‖P_Ω(M - A)‖² + γ·tr(MᵀL_dis M + M L_drug Mᵀ)
 simultaneously — nuclear norm, data fidelity, and graph smoothness in one
 Lagrangian.
 
-S-step: GIP recomputed from completed M and fused with raw similarities:
-    S_new = w_gip · GIP(M) + (1-w_gip) · S_raw
+Two solver paths selected automatically by matrix size:
+  Plan A (≤1000): embedded graph regularization in ADMM via first-order
+                  Neumann approximation — joint optimization.
+  Plan B (>1000): two-step — standard ADMM then post-hoc bilateral exact
+                  Cholesky graph filter for large matrices.
 
-n_iter=1 → one-shot GIP+BNNR (Demo2 / GF-BNNR), N=1 special case.
-n_iter=2 (default) → one GIP recomputation; fixed-point N=2 suffices.
+Note: The primary function is named ``GRMC()`` for code compatibility; the
+method is referred to as **SGRMC** (Sparsified GRMC) in the accompanying paper.
 """
 import numpy as np
 
 from .core import BNNR, BNNR_graph_aware
-from .filter import normalised_laplacian, graph_filter
-from .gip import getGIPSim
+from .filter import normalised_laplacian, graph_filter, sparsify_graph
 
 # Threshold for switching to fallback: when max matrix dimension exceeds this,
 # the embedded graph filter in BNNR_graph_aware becomes too expensive (dense
@@ -29,126 +32,178 @@ from .gip import getGIPSim
 LARGE_MATRIX_THRESHOLD = 1000
 
 
+def GRMC(Wrr, Wdd, Wdr, alpha=1, beta=10,
+         graph_alpha=0.7,
+         tol1=2e-3, tol2=1e-5, maxiter=300, a=0, b=1,
+         S_drug=None, S_dis=None,
+         knn_k=None,
+         verbose=0):
+    """Graph-Regularized Matrix Completion — single-pass, no GIP.
+
+    Uses raw structural similarity graphs directly (no GIP fusion) to
+    regularize matrix completion via graph Laplacian smoothness.
+
+    Parameters
+    ----------
+    Wrr : ndarray (n_drug, n_drug)
+        Raw drug similarity matrix.
+    Wdd : ndarray (n_dis, n_dis)
+        Raw disease similarity matrix.
+    Wdr : ndarray (n_dis, n_drug)
+        CV-masked association matrix.
+    alpha, beta : float
+        BNNR data-fidelity and ADMM penalty.
+    graph_alpha : float
+        Graph filter strength (0 = BNNR, higher = more smoothing).
+    tol1, tol2 : float
+        BNNR convergence thresholds.
+    maxiter : int
+        Maximum BNNR iterations.
+    a, b : float
+        Predicted-value bounds [a, b].
+    S_drug, S_dis : ndarray or None
+        Pre-computed similarity matrices (no data leakage).
+    knn_k : int or None
+        KNN graph sparsification: keep only top-k neighbors per node.
+        None (default): auto — k=5 for dense (>0.1%), k=50 for ultra-sparse.
+        0: disable sparsification (full dense graph).
+        >0: explicit k value.
+    verbose : int
+        0 = silent, 1 = summary.
+
+    Returns
+    -------
+    M_final : ndarray (n_dis, n_drug)
+        Completed association matrix.
+    history : list of dict
+        Single-entry list with diagnostics.
+    """
+    n_dis, n_drug = Wdr.shape
+    known_mask = (Wdr != 0)
+    density = np.count_nonzero(Wdr) / (n_dis * n_drug)
+
+    # ── raw structural similarities (no GIP) ──
+    if S_drug is not None and S_dis is not None:
+        Sd_cur = S_drug.copy()
+        St_cur = S_dis.copy()
+    else:
+        Sd_cur = Wrr.copy()
+        St_cur = Wdd.copy()
+
+    # ── KNN graph sparsification (adaptive by default) ──
+    if knn_k is None:
+        # Auto-select: aggressive (k=5) for dense graphs where weak edges
+        # are noise; mild (k=50) for ultra-sparse matrices where similarity
+        # edges are scarce information. Threshold: 0.1% association density.
+        knn_k = 5 if density > 0.001 else 50
+    if knn_k > 0:
+        Sd_cur = sparsify_graph(Sd_cur, knn_k)
+        St_cur = sparsify_graph(St_cur, knn_k)
+
+    # ── build augmented matrix (drugs-first: matches build_augmented_matrix) ──
+    T = np.block([[Sd_cur, Wdr.T],
+                  [Wdr, St_cur]])
+    trIndex = (T != 0)  # bool mask — saves ~250 MiB on DNdataset
+
+    # ── compute graph Laplacians ──
+    L_dis = normalised_laplacian(St_cur)
+    L_drug = normalised_laplacian(Sd_cur)
+
+    # ── M-step: completion with graph regularization ──
+    is_large = max(n_dis, n_drug) > LARGE_MATRIX_THRESHOLD
+    if is_large:
+        if verbose >= 1:
+            print(f"  [GRMC] large matrix ({n_dis}×{n_drug}), "
+                  f"falling back to two-step BNNR+filter solver")
+        # Plan B: two-step — standard BNNR → post-hoc bilateral Cholesky filter
+        WW, bnnr_iter = BNNR(
+            alpha=alpha, beta=beta, T=T, trIndex=trIndex,
+            tol1=tol1, tol2=tol2, maxiter=maxiter, a=a, b=b)
+        M_raw = WW[-n_dis:, :n_drug]
+        M_filtered = graph_filter(M_raw, L_dis, L_drug, graph_alpha)
+    else:
+        # Plan A: embedded graph regularization in ADMM (joint optimization
+        # via first-order Neumann approximation).
+        WW, bnnr_iter = BNNR_graph_aware(
+            alpha=alpha, beta=beta, T=T, trIndex=trIndex,
+            tol1=tol1, tol2=tol2, maxiter=maxiter, a=a, b=b,
+            L_dis=L_dis, L_drug=L_drug, alpha_f=graph_alpha,
+            n_dis=n_dis, n_drug=n_drug)
+        M_filtered = WW[-n_dis:, :n_drug]
+
+    # ── preserve known entries ──
+    M_final = np.where(known_mask, Wdr, M_filtered)
+
+    diag = {
+        'iteration': 1,
+        'bnnr_iter': int(bnnr_iter),
+        'density': float(density),
+        'graph_alpha': graph_alpha,
+        'knn_k': int(knn_k),
+        'M_mean': float(M_filtered.mean()),
+        'M_std': float(M_filtered.std()),
+    }
+
+    if verbose >= 1:
+        print(f"  [GRMC] bnnr_iter={bnnr_iter}  "
+              f"M_mean={diag['M_mean']:.4f}")
+
+    return M_final, [diag]
+
+
 def BADGE(Wrr, Wdd, Wdr, alpha=1, beta=10,
           graph_alpha=0.5, gamma_gip=1.0, w_gip=0.3,
           n_iter=2,
           tol1=2e-3, tol2=1e-5, maxiter=300, a=0, b=1,
           S_drug=None, S_dis=None,
           verbose=0):
-    """Joint matrix-kernel estimation via alternating minimization.
+    """[DEPRECATED] Thin wrapper around GRMC for backward compatibility.
 
-    M-step: ADMM with embedded graph Laplacian regularization, jointly
-    optimizing nuclear norm + data fidelity + graph smoothness.
-    S-step: recompute GIP from M and fuse with raw similarities.
+    BADGE (Bayesian Adaptive Drug-disease Graph Enhancement) previously
+    implemented joint matrix-kernel estimation with GIP fusion and
+    alternating minimization. GIP has been shown to be counterproductive
+    under CVc — raw similarities consistently outperform GIP-fused graphs.
 
-    n_iter=1 → one-shot GIP+BNNR (Demo2/GF-BNNR), N=1 special case.
-    n_iter=2 (default) → one GIP recomputation; fixed-point N=2 suffices.
+    This function now delegates to GRMC() (Graph-Regularized Matrix
+    Completion). The gamma_gip, w_gip, and n_iter parameters are accepted
+    for backward compatibility but **ignored**.
+
+    Use ``GRMC()`` directly for new code.
 
     Parameters
     ----------
     Wrr : ndarray (n_drug, n_drug)
     Wdd : ndarray (n_dis, n_dis)
-    Wdr : ndarray (n_dis, n_drug), CV-masked association matrix.
-    alpha, beta : float, BNNR data-fidelity and ADMM penalty.
-    graph_alpha : float, graph filter strength.
-    gamma_gip : float, GIP kernel bandwidth.
-    w_gip : float, GIP fusion weight in [0, 1].
-    n_iter : int, refinement iterations (1 = GF-BNNR, ≥2 = BADGE).
-    tol1, tol2 : float, BNNR convergence thresholds.
-    maxiter : int, max BNNR iterations per outer loop.
-    a, b : float, predicted-value bounds.
-    S_drug, S_dis : ndarray or None, pre-fused similarities.
-    verbose : int, 0=silent, 1=summary.
+    Wdr : ndarray (n_dis, n_drug)
+    alpha, beta : float
+    graph_alpha : float
+        Graph filter strength (the only regularization used).
+    gamma_gip : float
+        [IGNORED — GIP bandwidth, kept for backward compat]
+    w_gip : float
+        [IGNORED — GIP fusion weight, kept for backward compat]
+    n_iter : int
+        [IGNORED — alternating iterations, kept for backward compat]
+    tol1, tol2 : float
+    maxiter : int
+    a, b : float
+    S_drug, S_dis : ndarray or None
+    verbose : int
 
     Returns
     -------
     M_final : ndarray (n_dis, n_drug)
-    history : list of dict, per-iteration diagnostics.
+    history : list of dict
     """
-    n_dis, n_drug = Wdr.shape
-    known_mask = (Wdr != 0)
-    density = np.count_nonzero(Wdr) / (n_dis * n_drug)
+    import warnings
+    warnings.warn(
+        "BADGE is deprecated — use GRMC() instead. "
+        "GIP fusion (w_gip, gamma_gip) and alternating iterations (n_iter) "
+        "are ignored. Raw similarities are used directly.",
+        DeprecationWarning, stacklevel=2)
 
-    # ── initial GIP from sparse associations ──
-    if S_drug is not None and S_dis is not None:
-        Sd_cur = S_drug.copy()
-        St_cur = S_dis.copy()
-    else:
-        Gp_dis, Gp_drug = getGIPSim(Wdr, gamma_gip, gamma_gip, 0, 0)
-        if Gp_dis is None or Gp_drug is None:
-            Sd_cur = Wrr.copy()
-            St_cur = Wdd.copy()
-        else:
-            Sd_cur = w_gip * Gp_drug + (1 - w_gip) * Wrr
-            St_cur = w_gip * Gp_dis + (1 - w_gip) * Wdd
-
-    history = []
-    M_cur = Wdr.copy()
-
-    # Detect large-matrix regime: embedded Laplacian matmuls per ADMM
-    # iteration become prohibitively expensive → fall back to two-step.
-    is_large = max(n_dis, n_drug) > LARGE_MATRIX_THRESHOLD
-    if is_large and verbose >= 1:
-        print(f"  [BADGE] large matrix ({n_dis}×{n_drug}), "
-              f"falling back to two-step BNNR+filter solver")
-
-    for t in range(n_iter):
-        # ── build augmented matrix ──
-        T = np.block([[St_cur, M_cur],
-                       [M_cur.T, Sd_cur]])
-        trIndex = (T != 0).astype(np.float64)
-
-        # ── compute graph Laplacians ──
-        L_dis = normalised_laplacian(St_cur)
-        L_drug = normalised_laplacian(Sd_cur)
-
-        # ── M-step: completion with graph regularization ──
-        if is_large:
-            # Two-step fallback: standard BNNR → post-hoc bilateral filter.
-            # Avoids expensive per-iteration Laplacian matmuls on large matrices.
-            WW, bnnr_iter = BNNR(
-                alpha=alpha, beta=beta, T=T, trIndex=trIndex,
-                tol1=tol1, tol2=tol2, maxiter=maxiter, a=a, b=b)
-            M_raw = WW[:n_dis, -n_drug:]
-            M_filtered = graph_filter(M_raw, L_dis, L_drug, graph_alpha)
-        else:
-            # Plan A: embedded graph regularization in ADMM (joint optimization).
-            WW, bnnr_iter = BNNR_graph_aware(
-                alpha=alpha, beta=beta, T=T, trIndex=trIndex,
+    return GRMC(Wrr, Wdd, Wdr, alpha=alpha, beta=beta,
+                graph_alpha=graph_alpha,
                 tol1=tol1, tol2=tol2, maxiter=maxiter, a=a, b=b,
-                L_dis=L_dis, L_drug=L_drug, alpha_f=graph_alpha,
-                n_dis=n_dis, n_drug=n_drug)
-            M_filtered = WW[:n_dis, -n_drug:]
-
-        # ── preserve known entries ──
-        M_cur = np.where(known_mask, Wdr, M_filtered)
-
-        diag = {
-            'iteration': t + 1,
-            'bnnr_iter': int(bnnr_iter),
-            'density': float(density),
-            'w_gip': w_gip,
-            'graph_alpha': graph_alpha,
-            'M_mean': float(M_filtered.mean()),
-            'M_std': float(M_filtered.std()),
-        }
-        history.append(diag)
-
-        if verbose >= 1:
-            print(f"  [BADGE] iter={t+1}/{n_iter}  "
-                  f"bnnr_iter={bnnr_iter}  "
-                  f"M_mean={diag['M_mean']:.4f}")
-
-        # ── recompute GIP from filtered completion ──
-        if t < n_iter - 1:
-            Ge_dis, Ge_drug = getGIPSim(M_cur, gamma_gip, gamma_gip, 0, 0)
-            if Ge_dis is not None and Ge_drug is not None:
-                Sd_cur = w_gip * Ge_drug + (1 - w_gip) * Wrr
-                St_cur = w_gip * Ge_dis + (1 - w_gip) * Wdd
-
-    if verbose >= 1 and len(history) > 1:
-        delta_M = history[-1]['M_mean'] - history[0]['M_mean']
-        print(f"  [BADGE] final: {n_iter} iterations, "
-              f"delta_M_mean={delta_M:.6f}")
-
-    return M_cur, history
+                S_drug=S_drug, S_dis=S_dis,
+                verbose=verbose)

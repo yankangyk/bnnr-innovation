@@ -1,3 +1,19 @@
+"""
+[DEPRECATED] Gaussian Interaction Profile (GIP) kernel similarity.
+
+This module is retained for reference only. GIP fusion has been shown
+to be counterproductive under disease-centric cross-validation (CVc) —
+raw structural similarity graphs consistently outperform GIP-augmented
+graphs.
+
+The GRMC (Graph-Regularized Matrix Completion) framework uses raw
+similarities directly without GIP fusion. See ``bnnr.badge.GRMC``
+for the current implementation.
+
+If you need to compute GIP similarity as a baseline, use:
+    from bnnr.gip import getGIPSim
+    Kd, Km = getGIPSim(interaction_matrix, gamma0_d, gamma0_m)
+"""
 import numpy as np
 
 def getGIPSim(Adm_interaction, gamma0_d=None, gamma0_m=None, AvoidIsolatedNodes=True, RemoveNonoverlapPairs=True):

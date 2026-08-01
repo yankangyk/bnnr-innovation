@@ -1,24 +1,26 @@
 """
-BADGE Experiment — Bi-iterative Adaptive Drug-disease Graph Enhancement
+GRMC Experiment — Graph-Regularized Matrix Completion
 ========================================================================
 
-Compares BADGE against BNNR, GBNNR, and GF-BNNR on 3 benchmark datasets.
+Compares GRMC against BNNR on 3 benchmark datasets under disease-centric
+cross-validation (CVc). Includes filter strength (graph_alpha) ablation.
 
 Experiments:
-  E0  BNNR              baseline (raw similarities)
-  E1  GBNNR             inside graph regularisation
-  E2  GF-BNNR           outside post-hoc graph filter (= BADGE n_iter=1)
-  E3  BADGE n_iter=2    PROPOSED — one round of Bayesian GIP refinement
-  E4  BADGE n_iter=3    convergence check
+  E0  BNNR              baseline (raw similarities, no graph regularization)
+  E1  GRMC α=0.5        single-pass graph-regularized completion
+  E2  GRMC α=0.7        PROPOSED — stronger filter, improved default
 
-Key validation criteria:
-  (a) E3 >= E2 on moderate-density data (Fdataset, Cdataset)
-  (b) E3 >= E2 on ultra-sparse data (DNdataset)
-  (c) E4 ~ E3  — convergence within 2 iterations
+Ablation:
+  A1  α=0.1             weak filter
+  A2  α=0.3             moderate filter
+  A3  α=0.7             strong filter
+  A4  α=0.0             no filter (≈ BNNR identity check)
 
 Usage:
-    python scripts/run_badge.py                  # fresh run, all datasets
+    python scripts/run_badge.py                  # benchmark: BNNR + GRMC
     python scripts/run_badge.py --quick           # Fdataset only, 3 folds
+    python scripts/run_badge.py --experiments full  # benchmark + ablation
+    python scripts/run_badge.py --datasets DNdataset  # specific dataset only
     python scripts/run_badge.py --resume          # resume from last fold
 """
 
@@ -34,21 +36,17 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE_DIR)
 
 from bnnr import (getKfoldCrossValidMatIndSet, getPerfMetricROCcompute,
-                   BNNR, GBNNR,
-                   GF_BNNR, BADGE,
-                   getGIPSim,
+                   BNNR, GRMC,
                    compute_topk_metrics,
                    ensure_dir, load_dataset,
                    build_augmented_matrix, mask_test_entries)
 
 # ── Paths ────────────────────────────────────────────────────────────────────
 DATASET_DIR = os.path.join(BASE_DIR, "data")
-RESULT_DIR = os.path.join(BASE_DIR, "Results", "BADGE")
 
 # ── Configuration ────────────────────────────────────────────────────────────
 SEED = 12345
 NFOLD = 10
-CVTYPE = "CVa"
 
 ALPHA = 1
 BETA = 10
@@ -57,22 +55,6 @@ TOL2 = 1e-5
 MAXITER = 300
 A_BOUND = 0
 B_BOUND = 1
-
-GRAPH_CFG = {
-    "lambda_r": 1e-3,
-    "lambda_d": 1e-3,
-    "knn_k": 12,
-    "inner_steps": 10,
-    "lr": 1e-2,
-    "gamma": 2.0,
-    "lambda_diag_factor": 0.2,
-}
-
-BADGE_CFG = {
-    "graph_alpha": 0.5,
-    "w_gip": 0.3,
-    "gamma_gip": 1.0,
-}
 
 DATASETS = {
     "Fdataset": os.path.join(DATASET_DIR, "Fdataset.mat"),
@@ -128,6 +110,7 @@ def load_completed_folds(csv_path):
 # ── Per-fold experiment functions ────────────────────────────────────────────
 
 def run_E0_BNNR(Wrr, Wdd, Wdr, matDR):
+    """BNNR baseline — raw similarities, no graph regularization."""
     T, trIndex = build_augmented_matrix(Wrr, Wdd, matDR)
     WW, iter_num = BNNR(alpha=ALPHA, beta=BETA, T=T, trIndex=trIndex,
                          tol1=TOL1, tol2=TOL2, maxiter=MAXITER,
@@ -135,114 +118,101 @@ def run_E0_BNNR(Wrr, Wdd, Wdr, matDR):
     return extract_recovery_block(WW, Wdd, Wdr), iter_num, {}
 
 
-def run_E1_GBNNR(Wrr, Wdd, Wdr, matDR):
-    T, trIndex = build_augmented_matrix(Wrr, Wdd, matDR)
-    WW, iter_num, _info = GBNNR(
-        alpha=ALPHA, beta=BETA, T=T, trIndex=trIndex,
-        tol1=TOL1, tol2=TOL2, maxiter=MAXITER, a=A_BOUND, b=B_BOUND,
-        Wrr_orig=Wrr, Wdd_orig=Wdd, n_drug=Wrr.shape[0],
-        knn_k=GRAPH_CFG["knn_k"], gamma_graph=GRAPH_CFG["gamma"],
-        lambda_r=GRAPH_CFG["lambda_r"], lambda_d=GRAPH_CFG["lambda_d"],
-        lambda_diag_factor=GRAPH_CFG["lambda_diag_factor"],
-        inner_steps=GRAPH_CFG["inner_steps"], lr=GRAPH_CFG["lr"], verbose=0)
-    return extract_recovery_block(WW, Wdd, Wdr), iter_num, {}
+def run_proposed(Wrr, Wdd, Wdr, matDR, graph_alpha=0.7, knn_k=None):
+    """GRMC — single-pass graph-regularized matrix completion."""
+    M_recovery, history = GRMC(Wrr, Wdd, matDR, alpha=ALPHA, beta=BETA,
+                               graph_alpha=graph_alpha,
+                               knn_k=knn_k,
+                               tol1=TOL1, tol2=TOL2, maxiter=MAXITER,
+                               a=A_BOUND, b=B_BOUND)
+    iter_num = history[0]["bnnr_iter"] if history else 0
+    extra = {"graph_alpha": graph_alpha, "knn_k": history[0].get("knn_k", 0)}
+    return M_recovery, iter_num, extra
 
 
-def run_E2_GF_BNNR(Wrr, Wdd, Wdr, matDR):
-    M_filtered, M_bnnr, iter_num = GF_BNNR(
-        Wrr, Wdd, matDR, alpha=ALPHA, beta=BETA,
-        tol1=TOL1, tol2=TOL2, maxiter=MAXITER, a=A_BOUND, b=B_BOUND,
-        gamma_gip=BADGE_CFG["gamma_gip"], w_gip=BADGE_CFG["w_gip"],
-        graph_alpha=BADGE_CFG["graph_alpha"])
-    return M_filtered, iter_num, {}
+# ── Experiment registries ────────────────────────────────────────────────────
+EXPERIMENTS_BENCHMARK = {
+    "E0_BNNR":       lambda w: run_E0_BNNR(*w),
+    "E1_GRMC_a50":   lambda w: run_proposed(*w, graph_alpha=0.5, knn_k=0),
+    "E2_GRMC_a70":   lambda w: run_proposed(*w, graph_alpha=0.7, knn_k=0),
+    "E3_GRMC":       lambda w: run_proposed(*w, graph_alpha=0.7),  # adaptive KNN
+}
 
-
-def run_BADGE_n(Wrr, Wdd, Wdr, matDR, n_iter):
-    M_final, history = BADGE(
-        Wrr, Wdd, matDR, alpha=ALPHA, beta=BETA,
-        graph_alpha=BADGE_CFG["graph_alpha"],
-        gamma_gip=BADGE_CFG["gamma_gip"], w_gip=BADGE_CFG["w_gip"],
-        n_iter=n_iter,
-        tol1=TOL1, tol2=TOL2, maxiter=MAXITER, a=A_BOUND, b=B_BOUND,
-        verbose=0)
-    total_bnnr_iter = sum(h["bnnr_iter"] for h in history)
-    extra = {
-        "total_bnnr_iter": total_bnnr_iter,
-        "n_iter": n_iter,
-        "density": history[0]["density"],
-        "n_completed": len(history),
-    }
-    return M_final, total_bnnr_iter, extra
-
-
-def run_ABL_noGIP(Wrr, Wdd, Wdr, matDR):
-    """A1: Ablate GIP fusion. w_gip=0, pure raw similarities."""
-    M_final, history = BADGE(
-        Wrr, Wdd, matDR, alpha=ALPHA, beta=BETA,
-        graph_alpha=BADGE_CFG["graph_alpha"],
-        gamma_gip=BADGE_CFG["gamma_gip"], w_gip=0.0,
-        n_iter=2,
-        tol1=TOL1, tol2=TOL2, maxiter=MAXITER, a=A_BOUND, b=B_BOUND,
-        verbose=0)
-    total_bnnr_iter = sum(h["bnnr_iter"] for h in history)
-    extra = {"total_bnnr_iter": total_bnnr_iter, "n_iter": 2,
-             "density": history[0]["density"]}
-    return M_final, total_bnnr_iter, extra
-
-
-def run_ABL_noFilter(Wrr, Wdd, Wdr, matDR):
-    """A2: Ablate graph filter. graph_alpha=0, no Laplacian smoothing."""
-    M_final, history = BADGE(
-        Wrr, Wdd, matDR, alpha=ALPHA, beta=BETA,
-        graph_alpha=0.0,
-        gamma_gip=BADGE_CFG["gamma_gip"], w_gip=BADGE_CFG["w_gip"],
-        n_iter=2,
-        tol1=TOL1, tol2=TOL2, maxiter=MAXITER, a=A_BOUND, b=B_BOUND,
-        verbose=0)
-    total_bnnr_iter = sum(h["bnnr_iter"] for h in history)
-    extra = {"total_bnnr_iter": total_bnnr_iter, "n_iter": 2,
-             "density": history[0]["density"]}
-    return M_final, total_bnnr_iter, extra
-
-
-# ── Experiment registry ──────────────────────────────────────────────────────
 EXPERIMENTS_QUICK = {
     "E0_BNNR":       lambda w: run_E0_BNNR(*w),
-    "E2_GF-BNNR":    lambda w: run_E2_GF_BNNR(*w),
-    "E3_BADGE_n2":   lambda w: run_BADGE_n(*w, n_iter=2),
-    "A1_noGIP":      lambda w: run_ABL_noGIP(*w),
-    "A2_noFilter":   lambda w: run_ABL_noFilter(*w),
+    "E1_GRMC_a50":   lambda w: run_proposed(*w, graph_alpha=0.5, knn_k=0),
+    "E2_GRMC_a70":   lambda w: run_proposed(*w, graph_alpha=0.7, knn_k=0),
+    "E3_GRMC":       lambda w: run_proposed(*w, graph_alpha=0.7),  # adaptive KNN
 }
 
 EXPERIMENTS_FULL = {
     "E0_BNNR":       lambda w: run_E0_BNNR(*w),
-    "E1_GBNNR":      lambda w: run_E1_GBNNR(*w),
-    "E2_GF-BNNR":    lambda w: run_E2_GF_BNNR(*w),
-    "E3_BADGE_n2":   lambda w: run_BADGE_n(*w, n_iter=2),
-    "E4_BADGE_n3":   lambda w: run_BADGE_n(*w, n_iter=3),
-    "A1_noGIP":      lambda w: run_ABL_noGIP(*w),
-    "A2_noFilter":   lambda w: run_ABL_noFilter(*w),
+    "E1_GRMC_a50":   lambda w: run_proposed(*w, graph_alpha=0.5, knn_k=0),
+    "E2_GRMC_a70":   lambda w: run_proposed(*w, graph_alpha=0.7, knn_k=0),
+    "E3_GRMC":       lambda w: run_proposed(*w, graph_alpha=0.7),  # adaptive KNN
+    "A1_alpha_01":   lambda w: run_proposed(*w, graph_alpha=0.1, knn_k=0),
+    "A2_alpha_03":   lambda w: run_proposed(*w, graph_alpha=0.3, knn_k=0),
+    "A3_alpha_07":   lambda w: run_proposed(*w, graph_alpha=0.7, knn_k=0),
+    "A4_alpha_00":   lambda w: run_proposed(*w, graph_alpha=0.0, knn_k=0),
+}
+
+EXPERIMENTS_ABLATION = {
+    "A1_alpha_01":   lambda w: run_proposed(*w, graph_alpha=0.1, knn_k=0),
+    "A2_alpha_03":   lambda w: run_proposed(*w, graph_alpha=0.3, knn_k=0),
+    "A3_alpha_07":   lambda w: run_proposed(*w, graph_alpha=0.7, knn_k=0),
+    "A4_alpha_00":   lambda w: run_proposed(*w, graph_alpha=0.0, knn_k=0),
+}
+
+EXPERIMENTS_KNN = {
+    "E0_BNNR":       lambda w: run_E0_BNNR(*w),
+    "E2_GRMC_a70":   lambda w: run_proposed(*w, graph_alpha=0.7, knn_k=0),
+    "K0_KNN_k05_a00": lambda w: run_proposed(*w, graph_alpha=0.0, knn_k=5),
+    "K1_KNN_k05_a70": lambda w: run_proposed(*w, graph_alpha=0.7, knn_k=5),
+    "K2_KNN_k10_a70": lambda w: run_proposed(*w, graph_alpha=0.7, knn_k=10),
+    "K3_KNN_k20_a70": lambda w: run_proposed(*w, graph_alpha=0.7, knn_k=20),
+    "K4_KNN_k50_a70": lambda w: run_proposed(*w, graph_alpha=0.7, knn_k=50),
+    "K5_KNN_k100_a70": lambda w: run_proposed(*w, graph_alpha=0.7, knn_k=100),
 }
 
 
 # ── Main ─────────────────────────────────────────────────────────────────────
-def run_experiments(resume=False, quick=False):
-    ensure_dir(RESULT_DIR)
+def run_experiments(resume=False, quick=False, cvtype="CVc",
+                    experiments="benchmark", datasets_filter=None):
+    result_dir = os.path.join(BASE_DIR, "Results",
+                              f"GRMC_{cvtype}")
+    ensure_dir(result_dir)
     global_start = time.time()
     all_fold_rows = []
     all_summary_rows = []
 
-    datasets = {"Fdataset": DATASETS["Fdataset"]} if quick else DATASETS
+    if experiments == "benchmark":
+        exp_registry = EXPERIMENTS_BENCHMARK
+    elif experiments == "quick":
+        exp_registry = EXPERIMENTS_QUICK
+    elif experiments == "ablation":
+        exp_registry = EXPERIMENTS_ABLATION
+    elif experiments == "knn":
+        exp_registry = EXPERIMENTS_KNN
+    else:
+        exp_registry = EXPERIMENTS_FULL
+
+    if quick:
+        datasets = {"Fdataset": DATASETS["Fdataset"]}
+    elif datasets_filter:
+        datasets = {k: DATASETS[k] for k in datasets_filter if k in DATASETS}
+    else:
+        datasets = DATASETS
     n_folds_to_run = 3 if quick else NFOLD
-    exp_registry = EXPERIMENTS_QUICK if quick else EXPERIMENTS_FULL
     exp_list = list(exp_registry.keys())
+
+    neg_type = "Unlabel" if cvtype == "CVa" else None
 
     for dataset_name, dataset_path in datasets.items():
         print("\n" + "=" * 80)
         print(f"Dataset: {dataset_name}")
         print("=" * 80)
 
-        dataset_dir = os.path.join(RESULT_DIR, dataset_name)
+        dataset_dir = os.path.join(result_dir, dataset_name)
         ensure_dir(dataset_dir)
 
         Wrr, Wdd, Wdr = load_dataset(dataset_path)
@@ -254,7 +224,7 @@ def run_experiments(resume=False, quick=False):
 
         np.random.seed(SEED)
         CVdata = getKfoldCrossValidMatIndSet(
-            Wdr, NFOLD, CVTYPE, "Unlabel", SEED)
+            Wdr, NFOLD, cvtype, neg_type, SEED)
         IndSet_pos_test = CVdata["MatIndSet_pos_test"]
         IndSet_neg_test = CVdata["MatIndSet_neg_test"]
 
@@ -313,8 +283,10 @@ def run_experiments(resume=False, quick=False):
 
                 elapsed = time.time() - tic
                 extra_str = ""
-                if "n_completed" in row:
-                    extra_str += f" n_iter={row['n_completed']}/{row['n_iter']}"
+                if "graph_alpha" in row:
+                    extra_str += f" α={row['graph_alpha']}"
+                if row.get("knn_k", 0) > 0:
+                    extra_str += f" k={row['knn_k']}"
                 print(f"    Fold {fold_id:02d}: AUROC={row['AUROC']:.4f}, "
                       f"AUPR={row['AUPR']:.4f}, "
                       f"P@10={row['P@10']:.4f}, "
@@ -343,14 +315,14 @@ def run_experiments(resume=False, quick=False):
     # ── Save global results ──
     all_fold_df = pd.DataFrame(all_fold_rows)
     all_summary_df = pd.DataFrame(all_summary_rows)
-    all_fold_df.to_csv(os.path.join(RESULT_DIR, "all_fold_results.csv"),
+    all_fold_df.to_csv(os.path.join(result_dir, "all_fold_results.csv"),
                        index=False, encoding="utf-8-sig")
-    all_summary_df.to_csv(os.path.join(RESULT_DIR, "all_summary_results.csv"),
+    all_summary_df.to_csv(os.path.join(result_dir, "all_summary_results.csv"),
                           index=False, encoding="utf-8-sig")
 
     # ── Print comparison table ──
     print("\n" + "=" * 80)
-    print("BADGE EXPERIMENT RESULTS")
+    print("GRMC EXPERIMENT RESULTS")
     print("=" * 80)
     for ds_name in datasets:
         ds_rows = all_summary_df[all_summary_df["dataset"] == ds_name]
@@ -367,15 +339,29 @@ def run_experiments(resume=False, quick=False):
 
     total_time = (time.time() - global_start) / 60.0
     print(f"\nTotal time: {total_time:.1f} min")
-    print(f"Results saved to: {RESULT_DIR}")
+    print(f"Results saved to: {result_dir}")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="BADGE Experiment Suite")
+        description="GRMC Experiment Suite")
     parser.add_argument("--resume", action="store_true",
                         help="Resume from last completed fold")
     parser.add_argument("--quick", action="store_true",
                         help="Quick test: Fdataset only, 3 folds")
+    parser.add_argument("--cvtype", type=str, default="CVc",
+                        choices=["CVa", "CVc"],
+                        help="CV protocol: CVa (random pair) or CVc (disease-centric)")
+    parser.add_argument("--experiments", type=str, default="benchmark",
+                        choices=["benchmark", "quick", "full", "ablation", "knn"],
+                        help="Experiment set: benchmark (BNNR+GRMC α=0.5,0.7), "
+                             "quick (Fdataset, 3-fold), full (benchmark+ablation), "
+                             "ablation (filter strength variants), "
+                             "knn (KNN graph sparsification sweep)")
+    parser.add_argument("--datasets", type=str, nargs="+", default=None,
+                        choices=["Fdataset", "Cdataset", "DNdataset"],
+                        help="Datasets to run (default: all)")
     args = parser.parse_args()
-    run_experiments(resume=args.resume, quick=args.quick)
+    run_experiments(resume=args.resume, quick=args.quick,
+                    cvtype=args.cvtype, experiments=args.experiments,
+                    datasets_filter=args.datasets)

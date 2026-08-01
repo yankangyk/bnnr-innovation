@@ -1,13 +1,13 @@
-# BADGE — Bayesian Adaptive Drug-disease Graph Enhancement
-# Integrates: BNNR, RA-BNNR, GBNNR, GF-BNNR, BADGE
+# GRMC — Graph-Regularized Matrix Completion
+# Single-pass matrix completion with graph Laplacian regularization,
+# using raw structural similarity graphs (no GIP fusion).
 
 from .core import BNNR, BNNR_adaptive, BNNR_graph_aware, infer_ra_params
 from .graph import (BNNR_graph, GBNNR,
                      build_knn_graph, normalized_laplacian,
                      normalized_laplacian_sparse)
-from .filter import GF_BNNR, normalised_laplacian, graph_filter
-from .badge import BADGE
-from .gip import getGIPSim
+from .filter import GF_BNNR, normalised_laplacian, graph_filter, sparsify_graph
+from .badge import GRMC, BADGE
 from .cv import getKfoldCrossValidMatIndSet
 from .metrics import getPerfMetricROCcompute, compute_topk_metrics
 from .svt import svt, svt_with_rank

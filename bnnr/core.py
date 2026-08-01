@@ -34,14 +34,14 @@ def BNNR(alpha, beta, T, trIndex, tol1, tol2, maxiter, a, b, X_init=None,
     T_recovery: np.ndarray, completed matrix
     iter: int, actual iteration count
     """
-    T = np.array(T, dtype=np.float64)
-    trIndex = np.array(trIndex, dtype=np.float64)
+    T = np.asarray(T, dtype=np.float64)
+    trIndex = np.asarray(trIndex, dtype=bool)
     if T.shape != trIndex.shape:
         raise ValueError("T and trIndex must have same shape")
 
     if X_init is None:
         X = T.copy()
-        W = T.copy()
+        W = np.empty_like(T)  # overwritten before first read — no copy needed
     else:
         X_init = np.array(X_init, dtype=np.float64)
         if X_init.shape != T.shape:
@@ -49,7 +49,7 @@ def BNNR(alpha, beta, T, trIndex, tol1, tol2, maxiter, a, b, X_init=None,
         X = X_init.copy()
         W = X_init.copy()
 
-    Y = T.copy()
+    Y = np.zeros_like(T)  # ADMM dual — zero init is standard, saves ~288 MiB
     i = 1
     stop1 = 1.0
     stop2 = 1.0
@@ -207,8 +207,8 @@ def BNNR_adaptive(alpha, beta, T, trIndex, tol1, tol2, maxiter, a, b,
     iter_num : int, iteration count
     info : dict, diagnostics (beta_history, rank_history, etc.)
     """
-    T = np.array(T, dtype=np.float64)
-    trIndex = np.array(trIndex, dtype=np.float64)
+    T = np.asarray(T, dtype=np.float64)
+    trIndex = np.asarray(trIndex, dtype=bool)
     if T.shape != trIndex.shape:
         raise ValueError("T and trIndex must have same shape")
 
@@ -316,7 +316,7 @@ def BNNR_graph_aware(alpha, beta, T, trIndex, tol1, tol2, maxiter, a, b,
 
         α_f · [ tr(M^T L_dis M) + tr(M L_drug M^T) ]
 
-    where M = T[:n_dis, n_dis:] is the association block.
+    where M = T[n_drug:, :n_drug] is the association block.
 
     Parameters
     ----------
@@ -339,14 +339,14 @@ def BNNR_graph_aware(alpha, beta, T, trIndex, tol1, tol2, maxiter, a, b,
     """
     import warnings
 
-    T = np.array(T, dtype=np.float64)
-    trIndex = np.array(trIndex, dtype=np.float64)
+    T = np.asarray(T, dtype=np.float64)
+    trIndex = np.asarray(trIndex, dtype=bool)
     if T.shape != trIndex.shape:
         raise ValueError("T and trIndex must have same shape")
 
     X = T.copy()
     W = T.copy()
-    Y_lag = T.copy()
+    Y_lag = np.zeros_like(T)
 
     stop1 = 1.0
     stop2 = 1.0
@@ -376,10 +376,10 @@ def BNNR_graph_aware(alpha, beta, T, trIndex, tol1, tol2, maxiter, a, b,
         # ── Embedded graph filter (first-order Neumann approximation) ──
         # (I+γL)^{-1} ≈ I - γL for γ ≪ 1/‖L‖.
         # Apply: M ← M - γ·(L_dis @ M + M @ L_drug) [bilateral]
-        M_block = W_new[:n_dis, n_dis:n_dis + n_drug]
+        M_block = W_new[n_drug:, :n_drug]
         M_sm = M_block - gamma_iter * (L_dis @ M_block + M_block @ L_drug)
-        W_new[:n_dis, n_dis:n_dis + n_drug] = M_sm
-        W_new[n_dis:n_dis + n_drug, :n_dis] = M_sm.T
+        W_new[n_drug:, :n_drug] = M_sm
+        W_new[:n_drug, n_drug:] = M_sm.T
 
         np.clip(W_new, a, b, out=W_new)
 
@@ -452,8 +452,8 @@ def BNNR_adaptive_v2(alpha, beta_init, T, trIndex, tol1, tol2, maxiter, a, b,
     iter_num : int, iteration count.
     info : dict, diagnostics.
     """
-    T = np.array(T, dtype=np.float64)
-    trIndex = np.array(trIndex, dtype=np.float64)
+    T = np.asarray(T, dtype=np.float64)
+    trIndex = np.asarray(trIndex, dtype=bool)
     if T.shape != trIndex.shape:
         raise ValueError("T and trIndex must have same shape")
 

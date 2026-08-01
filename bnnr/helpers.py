@@ -1,8 +1,9 @@
 """
-Shared experiment utilities for BNNR benchmark scripts.
+Shared experiment utilities for the SGRMC benchmark scripts.
 
 Convenience wrappers — not core algorithms. Eliminates duplication across
-run_all.py, run_gfbnnr.py, and quick_demo.py.
+scripts/run_badge.py (dataset loading, CV masking, augmented-matrix building,
+recovery-block extraction, and per-fold evaluation).
 """
 import os
 import numpy as np
@@ -41,7 +42,7 @@ def build_augmented_matrix(S_rr, S_dd, Wdr_masked):
     and its observation mask trIndex.
     """
     T = np.block([[S_rr, Wdr_masked.T], [Wdr_masked, S_dd]])
-    trIndex = (T != 0).astype(np.float64)
+    trIndex = (T != 0)  # bool mask
     return T, trIndex
 
 

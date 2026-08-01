@@ -28,14 +28,20 @@ Thumbs.db
 # Reference papers (downloaded, not project artifacts)
 papers/refs/
 
-# Generated figures and figure script (keep locally, don't track)
+# Generated figures (keep locally, don't track)
 papers/figures/*.pdf
 papers/figures/*.png
-scripts/paper_figures.py
+papers/figures/*.svg
+papers/figures/*.drawio
 
 # Claude
 .claude/
+CLAUDE.md
+PROGRESS.md
+
+# Figure generation script (keep locally, don't track)
+scripts/paper_figures.py
 
 # Jupyter
 .ipynb_checkpoints/
-output/
+
