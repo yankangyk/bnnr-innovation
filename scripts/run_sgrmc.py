@@ -1,27 +1,31 @@
 """
-GRMC Experiment — Graph-Regularized Matrix Completion
+SGRMC Experiment — Sparsified Graph-Regularized Matrix Completion
 ========================================================================
 
-Compares GRMC against BNNR on 3 benchmark datasets under disease-centric
-cross-validation (CVc). Includes filter strength (graph_alpha) ablation.
+Compares SGRMC against BNNR on 3 benchmark datasets under disease-centric
+cross-validation (CVc). Includes KNN sparsification and filter strength
+(graph_alpha) ablations.
 
 Experiments:
   E0  BNNR              baseline (raw similarities, no graph regularization)
   E1  GRMC α=0.5        single-pass graph-regularized completion
-  E2  GRMC α=0.7        PROPOSED — stronger filter, improved default
+  E2  GRMC α=0.7        dense graph (k=0), strong filter
+  E3  SGRMC             PROPOSED — adaptive KNN + α=0.7
 
-Ablation:
+Ablations:
   A1  α=0.1             weak filter
   A2  α=0.3             moderate filter
   A3  α=0.7             strong filter
   A4  α=0.0             no filter (≈ BNNR identity check)
+  K0-K5                 KNN sparsification sweep (k=5..100)
 
 Usage:
-    python scripts/run_badge.py                  # benchmark: BNNR + GRMC
-    python scripts/run_badge.py --quick           # Fdataset only, 3 folds
-    python scripts/run_badge.py --experiments full  # benchmark + ablation
-    python scripts/run_badge.py --datasets DNdataset  # specific dataset only
-    python scripts/run_badge.py --resume          # resume from last fold
+    python scripts/run_sgrmc.py                  # benchmark: BNNR + SGRMC
+    python scripts/run_sgrmc.py --quick           # Fdataset only, 3 folds
+    python scripts/run_sgrmc.py --experiments full  # benchmark + ablations
+    python scripts/run_sgrmc.py --experiments knn   # KNN sparsification sweep
+    python scripts/run_sgrmc.py --datasets DNdataset  # specific dataset only
+    python scripts/run_sgrmc.py --resume          # resume from last fold
 """
 
 import argparse
@@ -344,7 +348,7 @@ def run_experiments(resume=False, quick=False, cvtype="CVc",
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="GRMC Experiment Suite")
+        description="SGRMC Experiment Suite")
     parser.add_argument("--resume", action="store_true",
                         help="Resume from last completed fold")
     parser.add_argument("--quick", action="store_true",
@@ -354,7 +358,7 @@ if __name__ == "__main__":
                         help="CV protocol: CVa (random pair) or CVc (disease-centric)")
     parser.add_argument("--experiments", type=str, default="benchmark",
                         choices=["benchmark", "quick", "full", "ablation", "knn"],
-                        help="Experiment set: benchmark (BNNR+GRMC α=0.5,0.7), "
+                        help="Experiment set: benchmark (BNNR + GRMC/SGRMC), "
                              "quick (Fdataset, 3-fold), full (benchmark+ablation), "
                              "ablation (filter strength variants), "
                              "knn (KNN graph sparsification sweep)")

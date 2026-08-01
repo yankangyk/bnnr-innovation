@@ -36,7 +36,7 @@ BNNR_Innovation/
 │   ├── metrics.py             #   AUROC/AUPR + Top-K metrics
 │   └── helpers.py             #   Shared utilities
 ├── scripts/                   # Experiments
-│   ├── run_badge.py           #   Full experiment suite
+│   ├── run_sgrmc.py           #   Full experiment suite
 │   └── paper_figures.py       #   Publication figure generation
 ├── data/                      # Benchmark datasets (.mat)
 ├── papers/                    # Manuscript
@@ -57,16 +57,16 @@ BNNR_Innovation/
 pip install -r requirements.txt
 
 # Full benchmark — BNNR vs SGRMC, 10-fold CVc, all datasets
-python scripts/run_badge.py
+python scripts/run_sgrmc.py
 
 # Quick test (Fdataset only, 3 folds)
-python scripts/run_badge.py --quick
+python scripts/run_sgrmc.py --quick
 
 # KNN sparsification sweep
-python scripts/run_badge.py --experiments knn
+python scripts/run_sgrmc.py --experiments knn
 
 # Resume interrupted run
-python scripts/run_badge.py --resume
+python scripts/run_sgrmc.py --resume
 
 # Regenerate publication figures
 python scripts/paper_figures.py

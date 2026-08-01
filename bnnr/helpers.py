@@ -2,7 +2,7 @@
 Shared experiment utilities for the SGRMC benchmark scripts.
 
 Convenience wrappers — not core algorithms. Eliminates duplication across
-scripts/run_badge.py (dataset loading, CV masking, augmented-matrix building,
+scripts/run_sgrmc.py (dataset loading, CV masking, augmented-matrix building,
 recovery-block extraction, and per-fold evaluation).
 """
 import os
