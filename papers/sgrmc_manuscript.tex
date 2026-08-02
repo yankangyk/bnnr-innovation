@@ -205,7 +205,7 @@ For small to moderate matrices, we embed the graph Laplacian regularization dire
 \label{eq:neumann}
 \end{equation}
 
-With $\alpha = 0.7$ and $\beta = 10$, the damped per-iteration strength $\alpha/(10\beta) = 0.007$ keeps the correction in the linear regime ($\|\tfrac{\alpha}{10\beta}\mathbf{L}\|_2 \le 0.014$ for any normalized Laplacian, since $\|\mathbf{L}\|_2 \le 2$), whereas the undamped $2\alpha/\beta = 0.14$ would strain the first-order expansion and destabilize the coupling between the X- and W-updates. The W-update becomes:
+With $\alpha = 0.7$ and $\beta = 10$, the damped per-iteration strength $\alpha/(10\beta) = 0.007$ keeps the scaled filter operator contractive, so the first-order Neumann expansion (\eqref{eq:neumann}) remains accurate ($\|\tfrac{\alpha}{10\beta}\mathbf{L}\|_2 \le 0.014$ for any normalized Laplacian, since $\|\mathbf{L}\|_2 \le 2$), whereas the undamped $2\alpha/\beta = 0.14$ would strain the first-order expansion and destabilize the coupling between the X- and W-updates. The W-update becomes:
 
 \begin{equation}
 \mathbf{W} \gets (\mathbf{I} - \tfrac{\alpha}{10\beta}\mathbf{L}_{\text{dis}}) \cdot \mathbf{W}_{\text{off}} \cdot (\mathbf{I} - \tfrac{\alpha}{10\beta}\mathbf{L}_{\text{drug}})
