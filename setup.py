@@ -10,7 +10,7 @@ with open("requirements.txt", "r", encoding="utf-8") as fh:
 setup(
     name="bnnr-innovation",
     version="1.0.0",
-    description="Drug repositioning via Bounded Nuclear Norm Regularization",
+    description="SGRMC: Sparsified Graph-Regularized Matrix Completion for drug repositioning",
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="",

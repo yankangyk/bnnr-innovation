@@ -106,7 +106,14 @@ Drug similarities are computed as Tanimoto coefficients over CDK chemical descri
 
 \subsection{SGRMC: Method Description}
 
-SGRMC integrates three components into a single-pass framework: KNN graph sparsification, graph Laplacian regularization, and nuclear norm matrix completion with ADMM. We describe each in turn before presenting the full algorithm.
+SGRMC integrates three components into a single-pass framework: KNN graph sparsification, graph Laplacian regularization, and nuclear norm matrix completion with ADMM (Figure~\ref{fig:framework}). We describe each in turn before presenting the full algorithm.
+
+\begin{figure*}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/fig2_framework.pdf}
+\caption{Overview of the SGRMC framework. Raw similarity graphs are sparsified to their $k$-nearest neighbors per node (density-adaptive), graph Laplacians are computed once, and the association matrix is completed in a single pass (Plan~A: graph-regularized ADMM; Plan~B: standard ADMM followed by an exact Cholesky bilateral filter).}
+\label{fig:framework}
+\end{figure*}
 
 \subsubsection{Preliminaries: Nuclear Norm Matrix Completion with ADMM}
 
@@ -285,7 +292,14 @@ Dataset & Method & AUROC & AUPR & P@10 & P@20 \\
 \end{tabular}
 \end{table*}
 
-SGRMC substantially outperforms BNNR on all three datasets. The AUPR improvements are $+20.6\%$ (Fdataset), $+37.9\%$ (Cdataset), and $+26.6\%$ (DNdataset). AUROC improvements are most pronounced on the ultra-sparse DNdataset ($0.9493$ vs.\ $0.8391$, $+13.1\%$ relative gain), reflecting the graph Laplacian filter's ability to suppress false positives across the full ROC curve.
+\begin{figure*}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/fig1_main.pdf}
+\caption{Main results (10-fold CVc). AUPR for BNNR, GRMC with dense graphs ($\alpha=0.7$), and SGRMC (density-adaptive KNN, $\alpha=0.7$) on Fdataset, Cdataset, and DNdataset. Error bars show $\pm 1$ std.}
+\label{fig:main}
+\end{figure*}
+
+SGRMC substantially outperforms BNNR on all three datasets (Figure~\ref{fig:main}). The AUPR improvements are $+20.6\%$ (Fdataset), $+37.9\%$ (Cdataset), and $+26.6\%$ (DNdataset). AUROC improvements are most pronounced on the ultra-sparse DNdataset ($0.9493$ vs.\ $0.8391$, $+13.1\%$ relative gain), reflecting the graph Laplacian filter's ability to suppress false positives across the full ROC curve.
 
 The improvement is not uniform across datasets. On Fdataset and Cdataset ($\rho \approx 1\%$), the gains are driven primarily by KNN sparsification (see ablation, Section~\ref{sec:knn_ablation}): sparsifying the similarity graph to $k=5$ neighbors removes noisy edges that distort the Laplacian eigenbasis. On DNdataset ($\rho = 0.015\%$), the graph Laplacian filter is the dominant contributor: the Cholesky bilateral filter denoises the completed matrix, reducing both mean prediction error and per-fold variance (AUPR std: $\pm 0.0369$ vs.\ $\pm 0.1162$ for BNNR). This variance reduction is practically significant---the bilateral filter pulls outlier predictions toward the neighborhood consensus, providing a floor on per-fold performance.
 
@@ -337,7 +351,14 @@ Dataset & Configuration & AUROC & AUPR & P@10 & P@20 \\
 \end{tabular}
 \end{table*}
 
-Three patterns emerge. First, KNN sparsification is the largest single contributor to SGRMC's performance on the moderate-density datasets. With the graph filter disabled ($\alpha=0$), sparsification alone ($k=5$) improves AUPR from 0.1398 to 0.1515 on Fdataset and from 0.1326 to 0.1480 on Cdataset---demonstrating that the Laplacian computed from a sparsified graph is a fundamentally better regularizer than one computed from the dense similarity matrix, even without explicit filtering. Adding the graph filter ($\alpha=0.7$) on top of sparsification yields further gains (0.1686 and 0.1829 respectively), showing that the two components are complementary: sparsification cleans the Laplacian eigenbasis, and the filter then leverages this cleaner basis for denoising.
+\begin{figure*}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/fig3_knn.pdf}
+\caption{KNN sparsification ablation at fixed $\alpha=0.7$. AUPR versus sparsification level $k$ (log scale; the dense graph $k=0$ is shown for reference) on Fdataset, Cdataset, and DNdataset.}
+\label{fig:knn}
+\end{figure*}
+
+Figure~\ref{fig:knn} visualizes AUPR as a function of the sparsification level $k$ at fixed $\alpha=0.7$; three patterns emerge. First, KNN sparsification is the largest single contributor to SGRMC's performance on the moderate-density datasets. With the graph filter disabled ($\alpha=0$), sparsification alone ($k=5$) improves AUPR from 0.1398 to 0.1515 on Fdataset and from 0.1326 to 0.1480 on Cdataset---demonstrating that the Laplacian computed from a sparsified graph is a fundamentally better regularizer than one computed from the dense similarity matrix, even without explicit filtering. Adding the graph filter ($\alpha=0.7$) on top of sparsification yields further gains (0.1686 and 0.1829 respectively), showing that the two components are complementary: sparsification cleans the Laplacian eigenbasis, and the filter then leverages this cleaner basis for denoising.
 
 Second, performance on Fdataset and Cdataset declines monotonically as $k$ increases beyond 5. At $k=100$, performance approaches the full-graph baseline, consistent with the sparsified graph converging to the dense original. This monotonic decline confirms that weak similarity edges are predominantly noise, not signal, at these densities.
 

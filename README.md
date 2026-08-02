@@ -32,6 +32,7 @@ BNNR_Innovation/
 │   ├── filter.py              #   graph_filter + normalised_laplacian + sparsify_graph
 │   ├── svt.py                 #   Singular Value Thresholding
 │   ├── gip.py                 #   [DEPRECATED] GIP kernel, kept for reference
+│   ├── graph.py               #   [LEGACY] GBNNR / BNNR_graph, backward compat
 │   ├── cv.py                  #   Cross-validation (CVa/CVr/CVc)
 │   ├── metrics.py             #   AUROC/AUPR + Top-K metrics
 │   └── helpers.py             #   Shared utilities
@@ -90,11 +91,11 @@ Disease-centric cross-validation (CVc): all unlabeled entries in held-out diseas
 | Dataset | Method | AUROC | AUPR | P@10 | P@20 |
 |---------|--------|-------|------|------|------|
 | **Fdataset** | BNNR | 0.7820 ± 0.0369 | 0.1398 ± 0.0442 | 0.43 | 0.43 |
-| | **SGRMC** (k=5, α=0.7) | 0.7867 ± 0.0340 | **0.1686** ± 0.0538 | 0.52 | 0.49 |
+| | **SGRMC** (k=5, α=0.7) | 0.7867 ± 0.0340 | **0.1686** ± 0.0538 | 0.51 | 0.54 |
 | **Cdataset** | BNNR | 0.7943 ± 0.0415 | 0.1326 ± 0.0477 | 0.53 | 0.52 |
-| | **SGRMC** (k=5, α=0.7) | 0.8014 ± 0.0461 | **0.1829** ± 0.0604 | 0.61 | 0.60 |
+| | **SGRMC** (k=5, α=0.7) | 0.8014 ± 0.0461 | **0.1829** ± 0.0604 | 0.67 | 0.64 |
 | **DNdataset** | BNNR | 0.8391 ± 0.0399 | 0.2942 ± 0.1162 | 0.72 | 0.59 |
-| | **SGRMC** (k=50, α=0.7) | 0.9493 ± 0.0180 | **0.3724** ± 0.0369 | 0.77 | 0.70 |
+| | **SGRMC** (k=50, α=0.7) | 0.9493 ± 0.0180 | **0.3724** ± 0.0369 | 0.79 | 0.70 |
 
 Relative AUPR improvement: +20.6% (Fdataset), +37.9% (Cdataset), +26.6% (DNdataset).
 
