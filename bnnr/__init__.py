@@ -7,7 +7,7 @@ from .graph import (BNNR_graph, GBNNR,
                      build_knn_graph, normalized_laplacian,
                      normalized_laplacian_sparse)
 from .filter import GF_BNNR, normalised_laplacian, graph_filter, sparsify_graph
-from .badge import GRMC, BADGE
+from .sgrmc import GRMC, BADGE
 from .cv import getKfoldCrossValidMatIndSet
 from .metrics import getPerfMetricROCcompute, compute_topk_metrics
 from .svt import svt, svt_with_rank

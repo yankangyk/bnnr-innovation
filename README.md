@@ -20,14 +20,14 @@ Drug repositioning is framed as a matrix completion problem: given a partially o
 | Method | Role | Module |
 |--------|------|--------|
 | **BNNR** | Baseline (Yang et al., 2019) — nuclear norm matrix completion | `bnnr/core.py` |
-| **SGRMC** | Proposed method — sparsified graph-regularized completion | `bnnr/badge.py` |
+| **SGRMC** | Proposed method — sparsified graph-regularized completion | `bnnr/sgrmc.py` |
 
 ## Project Structure
 
 ```
 BNNR_Innovation/
 ├── bnnr/                      # Core package
-│   ├── badge.py               #   SGRMC (proposed) + deprecated BADGE wrapper
+│   ├── sgrmc.py               #   SGRMC (proposed) + deprecated BADGE wrapper
 │   ├── core.py                #   BNNR + ADMM solvers
 │   ├── filter.py              #   graph_filter + normalised_laplacian + sparsify_graph
 │   ├── svt.py                 #   Singular Value Thresholding

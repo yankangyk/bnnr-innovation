@@ -116,7 +116,7 @@ def GF_BNNR(Wrr, Wdd, Wdr, alpha=1, beta=10,
     iter_num : int
         BNNR iterations.
     """
-    from .badge import GRMC
+    from .sgrmc import GRMC
 
     M_final, history = GRMC(Wrr, Wdd, Wdr, alpha=alpha, beta=beta,
                             graph_alpha=graph_alpha,

@@ -7,7 +7,7 @@ raw structural similarity graphs consistently outperform GIP-augmented
 graphs.
 
 The GRMC (Graph-Regularized Matrix Completion) framework uses raw
-similarities directly without GIP fusion. See ``bnnr.badge.GRMC``
+similarities directly without GIP fusion. See ``bnnr.sgrmc.GRMC``
 for the current implementation.
 
 If you need to compute GIP similarity as a baseline, use:
