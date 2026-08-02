@@ -55,7 +55,7 @@
 
 \abstract{%
 \textbf{Motivation:} Drug repositioning identifies new therapeutic uses for approved drugs at reduced cost and risk. Matrix completion methods exploit structural similarities among drugs and diseases as side information, but the similarity graphs---typically dense (all pairwise similarities are non-zero)---contain numerous weak, noisy edges that degrade regularization. We show that KNN-sparsified similarity graphs, combined with graph Laplacian regularization in a single pass, produce substantially more accurate association predictions than conventional approaches.\par
-\textbf{Results:} We propose SGRMC (Sparsified Graph-Regularized Matrix Completion), a single-pass framework with three components: (1)~density-adaptive KNN graph sparsification that retains only the top-$k$ neighbors per node, removing weak similarity edges that propagate noise through the Laplacian; (2)~graph Laplacian regularization embedded directly in nuclear norm minimization; and (3)~automatic solver selection between a Neumann-approximated joint ADMM path (Plan~A, $\le 1000$ rows/cols) and a Cholesky-based two-step path (Plan~B, for larger matrices). Under 10-fold disease-centric cross-validation (CVc), SGRMC achieves AUPR of 0.1686 (Fdataset), 0.1829 (Cdataset), and 0.3724 (DNdataset), representing improvements of $+20.6$\%, $+37.9$\%, and $+26.6$\% over BNNR. Ablation experiments reveal a density-dependent division of labor: KNN sparsification drives the majority of gains on moderate-density datasets, while graph Laplacian filtering dominates on ultra-sparse data.\par
+\textbf{Results:} We propose SGRMC (Sparsified Graph-Regularized Matrix Completion), a single-pass framework with three components: (1)~density-adaptive KNN graph sparsification that retains only the top-$k$ neighbors per node, removing weak similarity edges that propagate noise through the Laplacian; (2)~graph Laplacian regularization embedded directly in nuclear norm minimization; and (3)~automatic solver selection between a Neumann-approximated joint ADMM path (Plan~A, $\le 1000$ rows/cols) and a Cholesky-based two-step path (Plan~B, for larger matrices). Under 10-fold disease-centric cross-validation (CVc), SGRMC achieves AUPR of 0.1686 (Fdataset), 0.1829 (Cdataset), and 0.3724 (DNdataset), representing improvements of $+20.6$\%, $+37.9$\%, and $+26.6$\% over BNNR. Ablation experiments reveal a density-dependent division of labor: KNN sparsification drives the majority of gains on moderate-density datasets, while on the ultra-sparse dataset the graph Laplacian filter provides the bulk of the gain, most effectively when combined with mild sparsification ($k=50$).\par
 \textbf{Availability:} Source code and datasets are available at [GitHub URL: to be added upon publication].\par
 \textbf{Contact:} [Corresponding author email: to be added]%
 }
@@ -76,7 +76,7 @@ We propose SGRMC (Sparsified Graph-Regularized Matrix Completion), a single-pass
 
     \item \textbf{Graph Laplacian regularization embedded in ADMM.} We incorporate graph smoothness---the requirement that similar drugs should have similar association profiles---directly into the ADMM objective via a first-order Neumann approximation of the bilateral graph filter (Plan~A). For large matrices where per-iteration Laplacian multiplications become prohibitive, we provide a two-step path: standard completion followed by a post-hoc exact Cholesky bilateral filter (Plan~B). The solver path is selected automatically based on matrix dimensions.
 
-    \item \textbf{Single-pass design.} The graph Laplacian is computed once from KNN-sparsified similarities and remains fixed throughout. There is no alternating refinement and no iterative graph recomputation. The completion is graph-regularized in a single pass.
+    \item \textbf{Single-pass efficiency.} The graph Laplacian is computed once from KNN-sparsified similarities and held fixed; the completion is graph-regularized in a single pass, with no alternating refinement or iterative graph recomputation. This avoids the computational overhead and additional tuning parameters of alternating schemes while preserving the graph-regularization mechanism.
 \end{enumerate}
 
 We evaluate SGRMC on three benchmark datasets spanning a 70$\times$ range of association densities (0.015\%--1.04\%) under disease-centric cross-validation (CVc), where all unlabeled entries in held-out disease columns serve as negatives. Ablation experiments on KNN sparsification level, graph filter strength, and the interaction between the two characterize the contribution of each component.
@@ -135,7 +135,7 @@ This construction encodes the intuition that similarity and association informat
 
 \subsubsection{Graph Laplacian Regularization}
 
-Given a similarity graph $\mathbf{S}$ with degree matrix $\mathbf{D} = \operatorname{diag}(\mathbf{S}\mathbf{1})$, the normalized Laplacian is $\mathbf{L} = \mathbf{I} - \mathbf{D}^{-1/2} \mathbf{S} \mathbf{D}^{-1/2}$ \cite{chung1997}. The graph smoothness of a matrix $\mathbf{M}$ with respect to the drug and disease similarity graphs is measured by the Laplacian quadratic form:
+Given a similarity graph $\mathbf{S}$ with degree matrix $\mathbf{D} = \operatorname{diag}(\mathbf{S}\mathbf{1})$, the symmetric normalized Laplacian is $\mathbf{L} = \mathbf{I} - \mathbf{D}^{-1/2} \mathbf{S} \mathbf{D}^{-1/2}$ \cite{chung1997}; its eigenvalues lie in $[0, 2]$, so its spectral norm satisfies $\|\mathbf{L}\|_2 \le 2$. The graph smoothness of a matrix $\mathbf{M}$ with respect to the drug and disease similarity graphs is measured by the Laplacian quadratic form:
 
 \begin{equation}
 \tr(\mathbf{M}^\top \mathbf{L}_{\text{dis}} \mathbf{M}) + \tr(\mathbf{M} \mathbf{L}_{\text{drug}} \mathbf{M}^\top)
@@ -145,13 +145,13 @@ Given a similarity graph $\mathbf{S}$ with degree matrix $\mathbf{D} = \operator
 Minimizing this quantity encourages $\mathbf{M}$ to vary smoothly along the similarity manifold: similar drugs should have similar association profiles across diseases, and similar diseases should be associated with similar drugs. The strength of this regularization is controlled by a parameter $\alpha$, with the bilateral graph filter taking the form:
 
 \begin{equation}
-\tilde{\mathbf{M}} = (\mathbf{I} + \alpha \mathbf{L}_{\text{drug}})^{-1}
+\tilde{\mathbf{M}} = (\mathbf{I} + \alpha \mathbf{L}_{\text{dis}})^{-1}
 \, \mathbf{M} \,
-(\mathbf{I} + \alpha \mathbf{L}_{\text{dis}})^{-1}
+(\mathbf{I} + \alpha \mathbf{L}_{\text{drug}})^{-1}
 \label{eq:gf}
 \end{equation}
 
-Equation~\eqref{eq:gf} describes a bilateral graph low-pass filter: each row $i$ of $\mathbf{M}$ is smoothed by taking a weighted average of rows $j$ where $\mathbf{S}_{\text{drug}}(i,j)$ is large, and analogously for columns. When embedded in ADMM iterations, this jointly optimizes low-rankness and graph smoothness. When applied as a post-hoc operation, it performs spectral denoising on an already-completed matrix.
+Equation~\eqref{eq:gf} describes a bilateral graph low-pass filter: each row $i$ of $\mathbf{M}$ (a disease) is smoothed by taking a weighted average of rows $j$ where $\mathbf{S}_{\text{dis}}(i,j)$ is large, and analogously each column (a drug) is smoothed using $\mathbf{S}_{\text{drug}}$. When embedded in ADMM iterations, this jointly optimizes low-rankness and graph smoothness. When applied as a post-hoc operation, it performs spectral denoising on an already-completed matrix.
 
 \subsubsection{KNN Graph Sparsification}
 
@@ -193,32 +193,32 @@ SGRMC minimizes the following objective:
 \label{eq:sgrmc_obj}
 \end{multline}
 
-where $\mathbf{L}_{\text{dis}}$ and $\mathbf{L}_{\text{drug}}$ are computed once from KNN-sparsified similarity matrices (Eq.~\ref{eq:knn}) and remain fixed. The first two terms compose the standard nuclear norm completion objective; the third term, controlled by the filter strength $\alpha$, is the graph smoothness regularizer.
+where $\mathbf{L}_{\text{dis}}$ and $\mathbf{L}_{\text{drug}}$ are computed once from KNN-sparsified similarity matrices (\eqref{eq:knn}) and remain fixed. The first two terms compose the standard nuclear norm completion objective; the third term, controlled by the filter strength $\alpha$, is the graph smoothness regularizer.
 
 SGRMC provides two solver paths, selected automatically based on matrix dimensions:
 
 \noindent\textbf{Plan A: Embedded Neumann approximation} ($\max(n_d, n_s) \le 1000$).\enspace
-For small to moderate matrices, we embed the graph Laplacian regularization directly in each ADMM W-update via a first-order Neumann approximation of the bilateral graph filter:
+For small to moderate matrices, we embed the graph Laplacian regularization directly in each ADMM W-update. Let $\mathbf{W}^{\text{std}}$ denote the standard (unregularized) BNNR W-update---the closed-form minimizer of the data-fidelity and consensus terms before any graph correction---and let $\mathbf{M} = \mathbf{W}_{\text{off}}$ be its off-diagonal drug--disease block, the variable on which the graph terms in Eq.~\eqref{eq:sgrmc_obj} act. The graph smoothness term contributes the gradient $2\alpha(\mathbf{L}_{\text{dis}}\mathbf{M} + \mathbf{M}\mathbf{L}_{\text{drug}})$ on this block. Balancing this gradient against the ADMM consensus penalty $\tfrac{\beta}{2}\|\mathbf{W} - \mathbf{W}^{\text{std}}\|_F^2$ gives the stationary condition $\beta(\mathbf{W}_{\text{off}} - \mathbf{W}_{\text{off}}^{\text{std}}) + 2\alpha(\mathbf{L}_{\text{dis}}\mathbf{W}_{\text{off}} + \mathbf{W}_{\text{off}}\mathbf{L}_{\text{drug}}) = 0$ on the off-diagonal block; taking one explicit step of the corresponding fixed-point iteration yields a bilateral low-pass correction with per-iteration coefficient $2\alpha/\beta$, where the factor $1/\beta$ arises from the ADMM penalty scaling. In practice we damp this coefficient by an empirical factor $1/20$, giving the first-order Neumann approximation:
 
 \begin{equation}
 (\mathbf{I} + \tfrac{\alpha}{10\beta}\mathbf{L})^{-1} \approx \mathbf{I} - \tfrac{\alpha}{10\beta}\mathbf{L}
 \label{eq:neumann}
 \end{equation}
 
-With $\alpha = 0.7$ and $\beta = 10$, the effective per-iteration regularization strength is $\alpha/(10\beta) = 0.007$, satisfying the small-parameter requirement for first-order accuracy ($\|\tfrac{\alpha}{10\beta}\mathbf{L}\| < 1$ for any normalized Laplacian). The W-update becomes:
+With $\alpha = 0.7$ and $\beta = 10$, the damped per-iteration strength $\alpha/(10\beta) = 0.007$ keeps the correction in the linear regime ($\|\tfrac{\alpha}{10\beta}\mathbf{L}\|_2 \le 0.014$ for any normalized Laplacian, since $\|\mathbf{L}\|_2 \le 2$), whereas the undamped $2\alpha/\beta = 0.14$ would strain the first-order expansion and destabilize the coupling between the X- and W-updates. The W-update becomes:
 
 \begin{equation}
 \mathbf{W} \gets (\mathbf{I} - \tfrac{\alpha}{10\beta}\mathbf{L}_{\text{dis}}) \cdot \mathbf{W}_{\text{off}} \cdot (\mathbf{I} - \tfrac{\alpha}{10\beta}\mathbf{L}_{\text{drug}})
 \label{eq:w_update}
 \end{equation}
 
-where $\mathbf{W}_{\text{off}}$ is the off-diagonal block of the standard ADMM W-update. This joint optimization produces a solution that is simultaneously low-rank, data-consistent, and graph-smooth.
+where $\mathbf{W}_{\text{off}} = \mathbf{M}$ is the off-diagonal drug--disease block of the standard ADMM W-update. This joint optimization produces a solution that is simultaneously low-rank, data-consistent, and graph-smooth.
 
 \noindent\textbf{Plan B: ADMM + exact Cholesky filter} ($\max(n_d, n_s) > 1000$).\enspace
 For large matrices (e.g., DNdataset with $1490 \times 4516$), the per-iteration Laplacian multiplications in Plan~A become prohibitively expensive. We instead run standard nuclear norm completion followed by a post-hoc bilateral exact Cholesky graph filter:
 
 \begin{equation}
-\tilde{\mathbf{M}} = (\mathbf{I} + \alpha \mathbf{L}_{\text{drug}})^{-1} \cdot \mathbf{M}_{\text{completed}} \cdot (\mathbf{I} + \alpha \mathbf{L}_{\text{dis}})^{-1}
+\tilde{\mathbf{M}} = (\mathbf{I} + \alpha \mathbf{L}_{\text{dis}})^{-1} \cdot \mathbf{M}_{\text{completed}} \cdot (\mathbf{I} + \alpha \mathbf{L}_{\text{drug}})^{-1}
 \label{eq:cholesky}
 \end{equation}
 
@@ -226,32 +226,35 @@ The Cholesky decomposition of $(\mathbf{I} + \alpha\mathbf{L})$ is computed once
 
 \subsubsection{Algorithm}
 
-Algorithm~\ref{alg:sgrmc} summarizes the SGRMC procedure.
+Algorithm~\ref{alg:sgrmc} summarizes the SGRMC procedure. The box constraint $a \le X_{ij} \le b$ of Eq.~\eqref{eq:mc} is enforced by clipping the completed association block to $[0,1]$ after each W-update (Plan~A) and after the Cholesky filter (Plan~B), so that predicted association scores remain valid probabilities.
 
 \begin{algorithm}[htbp]
 \caption{SGRMC: Sparsified Graph-Regularized Matrix Completion}
 \label{alg:sgrmc}
 \small
 \setlength{\tabcolsep}{0pt}
-\begin{tabular}{@{\stepcounter{algline}\thealgline.\quad}p{0.82\textwidth}}
-\textbf{Require:} $\mathbf{W}_{rr}, \mathbf{W}_{dd}, \mathbf{A}$ (raw similarity matrices and association matrix)\\
-\textbf{Require:} $\alpha_{\text{mc}}, \beta, \alpha$ (regularization parameters)\\
-\textbf{Ensure:} $\mathbf{M}$ (completed association matrix)\\
-$\rho \gets |\Omega| / (n_d \cdot n_s)$ \quad // association density\\
-$k \gets 5$ if $\rho > 10^{-3}$ else $50$ \quad // density-adaptive KNN sparsification\\
-$\mathbf{S}_{\text{drug}} \gets \text{KNN\_sparsify}(\mathbf{W}_{rr}, k)$\\
-$\mathbf{S}_{\text{dis}} \gets \text{KNN\_sparsify}(\mathbf{W}_{dd}, k)$\\
-Compute $\mathbf{L}_{\text{drug}} \gets \mathcal{L}(\mathbf{S}_{\text{drug}})$, $\mathbf{L}_{\text{dis}} \gets \mathcal{L}(\mathbf{S}_{\text{dis}})$\\
-Construct augmented matrix $\mathbf{T}$ via Eq.~\eqref{eq:augmented} (using $\mathbf{S}_{\text{drug}}, \mathbf{S}_{\text{dis}}$)\\
-\textbf{if} $\max(n_d, n_s) \le 1000$ \textbf{then}\\
-\quad $\mathbf{X} \gets \text{ADMM\_graph\_aware}(\mathbf{T}, \mathbf{L}_{\text{dis}}, \mathbf{L}_{\text{drug}}, \alpha)$ \quad // Plan A: embedded Neumann\\
-\textbf{else}\\
-\quad $\mathbf{X} \gets \text{ADMM\_standard}(\mathbf{T})$ \quad // standard ADMM+SVT\\
-\quad $\mathbf{M} \gets \mathbf{X}[n_d:, :n_d]$ \quad // extract off-diagonal block\\
-\quad $\mathbf{M} \gets (\mathbf{I} + \alpha\mathbf{L}_{\text{drug}})^{-1} \mathbf{M} (\mathbf{I} + \alpha\mathbf{L}_{\text{dis}})^{-1}$ \quad // Plan B: Cholesky filter\\
-\textbf{end if}\\
-$\mathbf{M}[\Omega] \gets \mathbf{A}[\Omega]$ \quad // preserve known entries\\
-\textbf{return} $\mathbf{M}$
+\begin{tabular}{@{\stepcounter{algline}\thealgline.\quad}p{0.50\linewidth}@{\quad}p{0.22\linewidth}@{}}
+\textbf{Require:} $\mathbf{W}_{rr}, \mathbf{W}_{dd}, \mathbf{A}$ (raw similarity matrices and association matrix) & \\
+\textbf{Require:} $\alpha_{\text{mc}}, \beta, \alpha$ (regularization parameters) & \\
+\textbf{Ensure:} $\mathbf{M}$ (completed association matrix) & \\
+$\rho \gets |\Omega| / (n_d \cdot n_s)$ & // association density \\
+$k \gets 5$ if $\rho > 10^{-3}$ else $50$ & // adaptive KNN sparsification \\
+$\mathbf{S}_{\text{drug}} \gets \text{KNN-sparsify}(\mathbf{W}_{rr}, k)$ & \\
+$\mathbf{S}_{\text{dis}} \gets \text{KNN-sparsify}(\mathbf{W}_{dd}, k)$ & \\
+$\mathbf{L}_{\text{drug}} \gets \mathcal{L}(\mathbf{S}_{\text{drug}})$, $\mathbf{L}_{\text{dis}} \gets \mathcal{L}(\mathbf{S}_{\text{dis}})$ & // graph Laplacians \\
+Construct augmented matrix $\mathbf{T}$ (Eq.~\eqref{eq:augmented}) & \\
+\textbf{if} $\max(n_d, n_s) \le 1000$ \textbf{then} & \\
+\quad $\mathbf{X} \gets \text{graphADMM}(\mathbf{T},\allowbreak \mathbf{L}_{\text{dis}},\allowbreak \mathbf{L}_{\text{drug}},\allowbreak \alpha)$ & // Plan A: embedded Neumann \\
+\quad $\mathbf{M} \gets \mathbf{X}[n_d:, :n_d]$ & // extract association block \\
+\textbf{else} & \\
+\quad $\mathbf{X} \gets \text{ADMM}(\mathbf{T})$ & // standard ADMM + SVT \\
+\quad $\mathbf{M} \gets \mathbf{X}[n_d:, :n_d]$ & // extract association block \\
+\quad $\mathbf{M} \gets (\mathbf{I} + \alpha\mathbf{L}_{\text{dis}})^{-1}\mathbf{M}$ & // Plan B: row filter \\
+\quad $\mathbf{M} \gets \mathbf{M}(\mathbf{I} + \alpha\mathbf{L}_{\text{drug}})^{-1}$ & // Plan B: column filter \\
+\textbf{end if} & \\
+$\mathbf{M} \gets \operatorname{clip}(\mathbf{M}, a, b)$ & // enforce box constraint $[0,1]$ \\
+$\mathbf{M}[\Omega] \gets \mathbf{A}[\Omega]$ & // preserve known entries \\
+\textbf{return} $\mathbf{M}$ & \\
 \end{tabular}
 \end{algorithm}
 
@@ -295,13 +298,13 @@ Dataset & Method & AUROC & AUPR & P@10 & P@20 \\
 \begin{figure*}[htbp]
 \centering
 \includegraphics[width=\textwidth]{figures/fig1_main.pdf}
-\caption{Main results (10-fold CVc). AUPR for BNNR, GRMC with dense graphs ($\alpha=0.7$), and SGRMC (density-adaptive KNN, $\alpha=0.7$) on Fdataset, Cdataset, and DNdataset. Error bars show $\pm 1$ std.}
+\caption{Main results (10-fold CVc). AUPR for BNNR, SGRMC without KNN sparsification (dense graph, $\alpha=0.7$), and SGRMC with density-adaptive KNN ($\alpha=0.7$) on Fdataset, Cdataset, and DNdataset. Error bars show $\pm 1$ std.}
 \label{fig:main}
 \end{figure*}
 
-SGRMC substantially outperforms BNNR on all three datasets (Figure~\ref{fig:main}). The AUPR improvements are $+20.6\%$ (Fdataset), $+37.9\%$ (Cdataset), and $+26.6\%$ (DNdataset). AUROC improvements are most pronounced on the ultra-sparse DNdataset ($0.9493$ vs.\ $0.8391$, $+13.1\%$ relative gain), reflecting the graph Laplacian filter's ability to suppress false positives across the full ROC curve.
+SGRMC substantially outperforms BNNR on all three datasets (Figure~\ref{fig:main}). The AUPR improvements are $+20.6\%$ (Fdataset), $+37.9\%$ (Cdataset), and $+26.6\%$ (DNdataset). AUROC improvements are most pronounced on the ultra-sparse DNdataset ($0.9493$ vs.\ $0.8391$, $+13.1\%$ relative gain), where the Plan~B Cholesky filter suppresses false positives across the full ROC curve; on the denser Fdataset and Cdataset the AUROC gains are modest ($+0.6\%$ and $+0.9\%$), the improvements instead concentrating in precision-oriented metrics (AUPR, P@10, P@20).
 
-The improvement is not uniform across datasets. On Fdataset and Cdataset ($\rho \approx 1\%$), the gains are driven primarily by KNN sparsification (see ablation, Section~\ref{sec:knn_ablation}): sparsifying the similarity graph to $k=5$ neighbors removes noisy edges that distort the Laplacian eigenbasis. On DNdataset ($\rho = 0.015\%$), the graph Laplacian filter is the dominant contributor: the Cholesky bilateral filter denoises the completed matrix, reducing both mean prediction error and per-fold variance (AUPR std: $\pm 0.0369$ vs.\ $\pm 0.1162$ for BNNR). This variance reduction is practically significant---the bilateral filter pulls outlier predictions toward the neighborhood consensus, providing a floor on per-fold performance.
+The improvement is not uniform across datasets. On Fdataset and Cdataset ($\rho \approx 1\%$), the gains are driven primarily by KNN sparsification (see ablation, Section~\ref{sec:knn_ablation}): sparsifying the similarity graph to $k=5$ neighbors removes noisy edges that distort the Laplacian eigenbasis. On DNdataset ($\rho = 0.015\%$), the picture is more nuanced (Table~\ref{tab:knn}). The graph Laplacian filter is the dominant single contributor---with the dense graph it lifts AUPR from 0.2942 (BNNR) to 0.3661 (Table~\ref{tab:alpha})---but aggressive sparsification ($k=5$) is harmful in this ultra-sparse regime, degrading AUPR to 0.2667. The best configuration therefore combines the filter with \emph{mild} sparsification ($k=50$, AUPR 0.3724). The filter also reduces per-fold variance (AUPR std: $\pm 0.0369$ vs.\ $\pm 0.1162$ for BNNR), pulling outlier predictions toward the neighborhood consensus and providing a floor on per-fold performance.
 
 Top-$K$ precision shows a consistent pattern: SGRMC matches or exceeds BNNR on P@10 and P@20 across all datasets. The largest relative gains are on Cdataset P@10 ($0.67$ vs.\ $0.53$, $+26.4\%$), Fdataset P@20 ($0.54$ vs.\ $0.43$, $+25.6\%$), and DNdataset P@20 ($0.70$ vs.\ $0.59$, $+18.6\%$), demonstrating that the ranking quality of top candidates---those most likely to be selected for experimental validation---improves substantially.
 
@@ -339,11 +342,12 @@ Dataset & Configuration & AUROC & AUPR & P@10 & P@20 \\
 & $k=50$ & $0.8031 \pm 0.0489$ & $0.1569 \pm 0.0564$ & 0.50 & 0.52 \\
 & $k=100$ & $0.8008 \pm 0.0432$ & $0.1503 \pm 0.0540$ & 0.49 & 0.51 \\
 \midrule
-\multirow{7}{*}{DNdataset}
+\multirow{8}{*}{DNdataset}
 & BNNR ($k{=}0,\alpha{=}0$) & $0.8391 \pm 0.0399$ & $0.2942 \pm 0.1162$ & 0.72 & 0.59 \\
 & $k=0$, $\alpha=0.7$ (dense) & $0.9269 \pm 0.0214$ & $0.3661 \pm 0.0320$ & 0.75 & 0.68 \\
 & $k=5$, $\alpha=0$ (sparse only) & $0.8540 \pm 0.0253$ & $0.2731 \pm 0.1061$ & 0.67 & 0.59 \\
 & $k=5$ & $0.8958 \pm 0.0177$ & $0.2667 \pm 0.1030$ & 0.62 & 0.57 \\
+& $k=10$ & $0.9148 \pm 0.0240$ & $0.3215 \pm 0.0884$ & 0.74 & 0.62 \\
 & $k=20$ & $0.9341 \pm 0.0224$ & $0.3704 \pm 0.0359$ & 0.74 & 0.64 \\
 & \textbf{$k=50$} & $0.9493 \pm 0.0180$ & $\mathbf{0.3724 \pm 0.0369}$ & 0.79 & 0.70 \\
 & $k=100$ & $0.9455 \pm 0.0222$ & $0.3663 \pm 0.0363$ & 0.82 & 0.74 \\
@@ -362,7 +366,7 @@ Figure~\ref{fig:knn} visualizes AUPR as a function of the sparsification level $
 
 Second, performance on Fdataset and Cdataset declines monotonically as $k$ increases beyond 5. At $k=100$, performance approaches the full-graph baseline, consistent with the sparsified graph converging to the dense original. This monotonic decline confirms that weak similarity edges are predominantly noise, not signal, at these densities.
 
-Third, the pattern reverses on DNdataset: aggressive sparsification ($k=5$) degrades performance (AUPR 0.2667 vs.\ 0.3661 with the full dense graph), because similarity edges are scarce side information in this ultra-sparse regime ($\rho=0.015\%$). The optimal $k=50$ provides a modest improvement ($+1.7\%$ over the full-graph baseline). This density-dependent reversal is the motivation for our adaptive scheme (Eq.~\ref{eq:k_adaptive}).
+Third, the pattern reverses on DNdataset: aggressive sparsification ($k=5$) degrades performance (AUPR 0.2667 vs.\ 0.3661 with the full dense graph), because similarity edges are scarce side information in this ultra-sparse regime ($\rho=0.015\%$). The optimal $k=50$ provides a modest improvement ($+1.7\%$ over the full-graph baseline). This density-dependent reversal is the motivation for our adaptive scheme (\eqref{eq:k_adaptive}).
 
 \subsection{Graph Filter Strength}
 \label{sec:filter_ablation}
@@ -432,7 +436,7 @@ On Fdataset and Cdataset (matrices $\le 1000$, Plan~A), SGRMC adds negligible ov
 
 \subsection{Why Graph Sparsification Helps}
 
-The effectiveness of KNN sparsification can be understood through the spectral properties of the graph Laplacian. A dense similarity graph contains many edges with small positive weights (e.g., Tanimoto similarities of 0.1--0.3 between structurally dissimilar drugs). In the normalized Laplacian $\mathbf{L} = \mathbf{I} - \mathbf{D}^{-1/2}\mathbf{S}\mathbf{D}^{-1/2}$, these weak edges contribute small off-diagonal entries that, when accumulated across all $\sim n$ neighbors, introduce high-frequency noise into the graph Fourier basis. The bilateral filter (Eq.~\ref{eq:gf}) projects predictions onto the leading eigenvectors of $(\mathbf{I}+\alpha\mathbf{L})^{-1}$, which approximate the low-frequency (smooth) components of the graph. When the Laplacian is contaminated by weak-edge noise, these leading eigenvectors are distorted away from the true community structure.
+The effectiveness of KNN sparsification can be understood through the spectral properties of the graph Laplacian. A dense similarity graph contains many edges with small positive weights (e.g., Tanimoto similarities of 0.1--0.3 between structurally dissimilar drugs). In the normalized Laplacian $\mathbf{L} = \mathbf{I} - \mathbf{D}^{-1/2}\mathbf{S}\mathbf{D}^{-1/2}$, these weak edges contribute small off-diagonal entries that, when accumulated across all $\sim n$ neighbors, introduce high-frequency noise into the graph Fourier basis. The bilateral filter (\eqref{eq:gf}) projects predictions onto the leading eigenvectors of $(\mathbf{I}+\alpha\mathbf{L})^{-1}$, which approximate the low-frequency (smooth) components of the graph. When the Laplacian is contaminated by weak-edge noise, these leading eigenvectors are distorted away from the true community structure.
 
 Sparsifying to $k$-nearest neighbors removes this noise: edges below the $k$-th largest similarity per node are zeroed, eliminating their contribution to the Laplacian. The resulting leading eigenvectors better reflect the true block structure of the similarity graph (clusters of chemically related drugs, biologically related diseases). When the bilateral filter projects the completed matrix onto these cleaner eigenvectors, it preserves genuine community signal while more effectively attenuating prediction noise.
 
@@ -440,13 +444,13 @@ This mechanism explains the complementary relationship between sparsification an
 
 \subsection{Density-Dependent Behavior}
 
-The optimal sparsification level $k$ depends critically on association matrix density, motivating our adaptive scheme (Eq.~\ref{eq:k_adaptive}). This dependence reflects a fundamental trade-off between noise removal and information preservation.
+The optimal sparsification level $k$ depends critically on association matrix density, motivating our adaptive scheme (\eqref{eq:k_adaptive}). This dependence reflects a fundamental trade-off between noise removal and information preservation.
 
 On moderate-density datasets ($\rho \approx 1\%$), the similarity graphs contain $\sim n^2/2$ edges each---far more than the number of known associations (${\sim}2000$). In this regime, weak similarity edges are predominantly noise: they connect entities that are not meaningfully related, and their aggregate effect on the Laplacian eigenbasis is detrimental. Aggressive sparsification ($k=5$) removes these edges and retains only the strongest structural relationships, which tend to correspond to genuine chemical or phenotypic similarity.
 
 On the ultra-sparse DNdataset ($\rho = 0.015\%$, 1,008 known associations among 6.7 million possible pairs), the situation is reversed. The association signal is so scarce that any structural information---even weak similarity edges---may carry useful signal. Aggressive sparsification ($k=5$) discards too much of this information, degrading performance below the no-sparsification baseline. Mild sparsification ($k=50$) provides a small but consistent improvement, suggesting that even in this regime, the very weakest edges (those below the 50th percentile per node) are still noise.
 
-This density-dependent reversal has practical implications: sparsification strategies should be calibrated to the data regime. Our adaptive threshold ($\rho = 10^{-3}$, Eq.~\ref{eq:k_adaptive}) provides a simple heuristic; a continuous function of density (e.g., $k \propto 1/\sqrt{\rho}$) would be a natural extension for datasets with intermediate density.
+This density-dependent reversal has practical implications: sparsification strategies should be calibrated to the data regime. Our adaptive threshold ($\rho = 10^{-3}$, \eqref{eq:k_adaptive}) provides a simple heuristic; a continuous function of density (e.g., $k \propto 1/\sqrt{\rho}$) would be a natural extension for datasets with intermediate density.
 
 \subsection{Design Choices and Rationale}
 
@@ -456,7 +460,7 @@ SGRMC embodies three deliberate design choices:
 Dense similarity graphs contain weak edges that introduce noise into the Laplacian eigenbasis. KNN sparsification removes these edges before regularization, yielding a cleaner graph Fourier basis. This preprocessing step accounts for the majority of SGRMC's performance gain on moderate-density datasets and has negligible computational cost.
 
 \noindent\textbf{Single-pass over alternating refinement.}
-When the similarity graph is fixed and not iteratively recomputed, there is no graph to refine---the completion is graph-regularized in a single pass. SGRMC's single-pass design eliminates the computational overhead of alternating schemes while preserving the core mechanism of graph-regularized completion.
+We regard single-pass as a deliberate efficiency choice rather than a scientific contribution in its own right. Because the graph Laplacian is computed once from the KNN-sparsified similarities and held fixed, the completion is graph-regularized in a single pass---there is no graph to refine between iterations. Unlike alternating schemes that re-estimate the similarity or graph structure from the current completion during optimization, SGRMC incurs no iterative graph-update overhead, and our ablations (Sections~\ref{sec:knn_ablation} and~\ref{sec:filter_ablation}) show that a single sparsification step already captures the graph structure that drives the performance gains.
 
 \noindent\textbf{Fixed filter strength with adaptive sparsification.}
 The graph filter strength $\alpha = 0.7$ is fixed across all datasets, while only the sparsification level $k$ adapts to association density. The filter strength ablation (Section~\ref{sec:filter_ablation}) shows that $\alpha = 0.7$ is near-optimal across all three datasets, and the KNN ablation (Section~\ref{sec:knn_ablation}) shows that adaptive $k$ covers the density-dependent sparsification needs. This design separates two concerns that are often conflated: how strongly to enforce smoothness (fixed) and which edges to consider when measuring smoothness (adaptive).
@@ -465,13 +469,13 @@ The graph filter strength $\alpha = 0.7$ is fixed across all datasets, while onl
 
 The HN-DRES benchmark \cite{li2024hn_dres} provides a comprehensive recent evaluation of 28 network-based drug repositioning methods under pair-centric cross-validation (CVa). Direct per-dataset comparison between SGRMC and these methods is not currently feasible: the benchmark reports results under CVa (with 1:1 negative subsampling), while our evaluation uses CVc (all-unlabeled-as-negative). Under CVa, AUPR values are systematically inflated (typically 0.90--0.98) because only a small, balanced subset of negatives is evaluated; under CVc, AUPR values drop to 0.13--0.37, reflecting the realistic challenge of distinguishing true associations among a vast candidate pool.
 
-The two protocols answer different questions. CVa asks: ``can the method separate known associations from a random sample of unlabeled pairs?'' CVc asks: ``can the method rank true associations above all possible candidates for a disease with only partial observed associations?'' The latter is more clinically relevant for drug repositioning, where the practical task is to prioritize a small number of candidates from the entire drug space for experimental validation. We encourage future benchmarking efforts to adopt CVc as a standardized protocol alongside CVa.
+The two protocols answer different questions. CVa asks: ``can the method separate known associations from a random sample of unlabeled pairs?'' CVc asks: ``can the method rank true associations above all possible candidates for a disease with only partial observed associations?'' The latter is more clinically relevant for drug repositioning, where the practical task is to prioritize a small number of candidates from the entire drug space for experimental validation \cite{gottlieb2011}. We encourage future benchmarking efforts to adopt CVc as a standardized protocol alongside CVa.
 
 \subsection{Limitations and Future Work}
 
 Several limitations merit discussion. First, SGRMC currently uses two similarity modalities (chemical and phenotypic). Multi-view extensions---incorporating gene expression, protein--protein interactions, or drug side-effect profiles---are compatible with the framework: the graph Laplacian regularization naturally extends to multiple graphs per entity type via multi-kernel Laplacian combinations.
 
-Second, the Plan~A Neumann approximation (Eq.~\ref{eq:neumann}) is accurate only when the effective filter strength $\alpha/(10\beta)$ is small relative to $1/\|\mathbf{L}\|$. While this holds for our parameter settings ($\alpha/(10\beta) = 0.007$), substantially higher filter strengths would require second-order approximations or exact Cholesky solves even for small matrices. The Plan~B Cholesky path does not have this limitation.
+Second, the Plan~A Neumann approximation (\eqref{eq:neumann}) is accurate only when the scaled filter operator is contractive, i.e.\ $\|(\alpha/(10\beta))\,\mathbf{L}\|_2 \ll 1$. This holds for our parameter settings: since $\|\mathbf{L}\|_2 \le 2$ and $\alpha/(10\beta) = 0.007$, the scaled operator norm satisfies $\|(\alpha/(10\beta))\,\mathbf{L}\|_2 \le 0.014 \ll 1$. Substantially higher filter strengths would require second-order approximations or exact Cholesky solves even for small matrices. The Plan~B Cholesky path does not have this limitation.
 
 Third, the adaptive KNN threshold ($\rho = 10^{-3}$) is set between Cdataset ($\rho = 9.33 \times 10^{-3}$) and DNdataset ($\rho = 1.50 \times 10^{-4}$), and validated on these two regimes. Datasets with intermediate density ($10^{-3}$--$10^{-2}$) may benefit from a continuous sparsification function rather than a hard threshold, which we leave to future work.
 
@@ -481,9 +485,9 @@ Fourth, while SGRMC demonstrates strong performance under CVc, prospective exper
 
 We introduced SGRMC, a single-pass framework for drug repositioning that combines density-adaptive KNN graph sparsification with graph Laplacian regularization in nuclear norm matrix completion. Three principles underpin the method: (1)~sparsify similarity graphs to their $k$-nearest neighbors before constructing the Laplacian, with $k$ set adaptively based on association density; (2)~enforce graph smoothness via Laplacian regularization embedded in ADMM (Plan~A, for small matrices) or applied as a post-hoc Cholesky bilateral filter (Plan~B, for large matrices); and (3)~complete the matrix in a single pass without alternating refinement.
 
-Under disease-centric cross-validation (CVc), SGRMC achieves AUPR of 0.1686 (Fdataset), 0.1829 (Cdataset), and 0.3724 (DNdataset)---representing relative improvements of $+20.6\%$, $+37.9\%$, and $+26.6\%$ over BNNR. Ablation experiments reveal a density-dependent division of labor: KNN sparsification is the dominant performance driver on moderate-density datasets, where it removes noisy edges that distort the Laplacian eigenbasis; graph Laplacian filtering dominates on the ultra-sparse dataset, where it provides critical spectral denoising.
+Under disease-centric cross-validation (CVc), SGRMC achieves AUPR of 0.1686 (Fdataset), 0.1829 (Cdataset), and 0.3724 (DNdataset)---representing relative improvements of $+20.6\%$, $+37.9\%$, and $+26.6\%$ over BNNR. Ablation experiments reveal a density-dependent division of labor: KNN sparsification is the dominant performance driver on moderate-density datasets, where it removes noisy edges that distort the Laplacian eigenbasis; on the ultra-sparse dataset the graph Laplacian filter provides the dominant gain, and is most effective in combination with mild sparsification ($k=50$), which preserves the scarce similarity signal.
 
-Our findings challenge a widely held assumption in graph-regularized matrix completion---that denser similarity graphs provide better regularization. Under realistic, all-unlabeled-as-negative evaluation, the opposite is true: sparsified graphs, by excluding weak and noisy similarity edges, produce a cleaner manifold structure and substantially more accurate predictions. This principle---sparsify the structural prior before regularizing the completion---may generalize beyond drug repositioning to other matrix completion tasks where side information graphs are available but noisy.
+Our findings challenge a widely held assumption in graph-regularized matrix completion---that denser similarity graphs provide better regularization. Under realistic, all-unlabeled-as-negative evaluation, the opposite is true on moderate-density datasets: sparsified graphs, by excluding weak and noisy similarity edges, produce a cleaner manifold structure and substantially more accurate predictions. On ultra-sparse data, by contrast, mild sparsification ($k=50$) is required---aggressive sparsification discards the scarce similarity information and degrades performance (Table~\ref{tab:knn}). This principle---sparsify the structural prior before regularizing the completion, with the sparsification level calibrated to data density---may generalize beyond drug repositioning to other matrix completion tasks where side information graphs are available but noisy.
 
 \section*{Data Availability}
 
