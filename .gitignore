@@ -6,6 +6,12 @@ __pycache__/
 # Results (generated at runtime)
 Results/
 
+# Archived dev scaffolding (kept locally, not tracked)
+archive/
+docs/
+# Reference method repos + MATLAB baseline drivers (large third-party code, kept local)
+Baseline/
+
 # Virtual environments
 venv/
 .venv/
@@ -38,9 +44,6 @@ papers/figures/*.drawio
 .claude/
 CLAUDE.md
 PROGRESS.md
-
-# Figure generation script (keep locally, don't track)
-scripts/paper_figures.py
 
 # Jupyter
 .ipynb_checkpoints/

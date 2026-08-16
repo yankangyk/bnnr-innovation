@@ -8,9 +8,9 @@ with open("requirements.txt", "r", encoding="utf-8") as fh:
                         and not line.startswith("#")]
 
 setup(
-    name="bnnr-innovation",
+    name="gmc-innovation",
     version="1.0.0",
-    description="SGRMC: Sparsified Graph-Regularized Matrix Completion for drug repositioning",
+    description="GMC: Graph Multi-view Completion for drug repositioning",
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="",
