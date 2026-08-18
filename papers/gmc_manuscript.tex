@@ -118,15 +118,15 @@ Random-entry masking turns drug repositioning into a matrix-completion problem: 
 A rank-based solver needs a starting value at every entry, but all-zero rows and columns of the masked matrix $\mathbf{M} \in \R^{n_d \times n_s}$ carry no gradient signal, so the completion is degenerate there. GMC seeds exactly those positions with a similarity-weighted neighbor prior \cite{yang2019omc2}: for each all-zero row (novel disease) $i$, the fill averages the association profiles of the $k=10$ most similar diseases using the fused disease similarity $\mathbf{W}_{dd}$; for each all-zero column (novel drug) $c$, it averages the profiles of the $k=10$ most similar drugs using the fused drug similarity $\mathbf{W}_{rr}$:
 
 \begin{equation}
-\tilde{\mathbf{M}}_{ic} = \frac{\sum_{j=1}^{k} \mathbf{W}_{dd}(i, \pi_j(i))\, \mathbf{M}(\pi_j(i), c)}{\sum_{j'=1}^{k} \mathbf{W}_{dd}(i, \pi_{j'}(i))}
+\tilde{\mathbf{M}}_{ic} = \frac{\sum_{j=1}^{k} \mathbf{W}_{dd}(i, \mathrm{nbr}(i,j))\, \mathbf{M}(\mathrm{nbr}(i,j), c)}{\sum_{j'=1}^{k} \mathbf{W}_{dd}(i, \mathrm{nbr}(i,j'))}
 \quad \text{(all-zero row)},
 \qquad
-\tilde{\mathbf{M}}_{ic} = \frac{\sum_{j=1}^{k} \mathbf{W}_{rr}(c, \pi_j(c))\, \mathbf{M}(i, \pi_j(c))}{\sum_{j'=1}^{k} \mathbf{W}_{rr}(c, \pi_{j'}(c))}
+\tilde{\mathbf{M}}_{ic} = \frac{\sum_{j=1}^{k} \mathbf{W}_{rr}(c, \mathrm{nbr}(c,j))\, \mathbf{M}(i, \mathrm{nbr}(c,j))}{\sum_{j'=1}^{k} \mathbf{W}_{rr}(c, \mathrm{nbr}(c,j'))}
 \quad \text{(all-zero column)},
 \label{eq:knnfill}
 \end{equation}
 
-where $\pi_j(i)$ is the $j$-th most similar entity to $i$ (self excluded)---diseases for the row fill, drugs for the column fill---and $k$ the neighborhood size. The fill is applied only where the row or column carries \emph{no} observed associations:
+where $\mathrm{nbr}(i,j)$ is the $j$-th nearest entity to $i$ (self excluded)---diseases for the row fill, drugs for the column fill---and $k$ the neighborhood size. The fill is applied only where the row or column carries \emph{no} observed associations:
 
 \begin{equation}
 \mathbf{F}_{ij} = \begin{cases}
@@ -150,7 +150,7 @@ obtained by solving the bounded nuclear-norm minimization (BNNR/SVT \cite{yang20
 \min_{\mathbf{X}} \; \tfrac{1}{2}\lVert \mathcal{P}_\Omega(\mathbf{X}-\mathbf{T}) \rVert_F^2 + \alpha \lVert \mathbf{X} \rVert_* \quad \text{subject to } \mathbf{X}\in[0,1],
 \label{eq:bnnr}
 \end{equation}
-via ADMM \cite{boyd2011} with singular-value soft-thresholding (rank-capped at $400$), where $\Omega$ is the set of observed (non-zero) entries of $\mathbf{T}$: only the true labels and the similarity blocks are fitted, so the low-rank projection is free to move the zero-valued (unknown) positions rather than being pinned to the fill. Because the similarity blocks are dense and observed, this is close to the \emph{denoising} mode of BNNR: the similarity structure regularizes the low-rank projection of the fill. The drug--disease block is recovered as $\mathbf{M}_{\text{bnnr}} = \mathbf{X}_{[0:n_d,\,n_d:n_d+n_s]}$ and clipped to $[0,1]$. Treating the similarity structure as part of the low-rank block---rather than as a separate constraint---is what lets the completion borrow strength across the joint graph. A symmetric block with rank cap $400$ and the observed-nonzero mask is used (the rank cap matters on the larger datasets, whose association matrices have higher intrinsic rank). This is the matrix geometry of the rank prior; the next subsection lifts the same prior to a tensor geometry that keeps the individual similarity views instead of fusing them.
+via ADMM \cite{boyd2011} with singular-value soft-thresholding (rank-capped at $400$, chosen as the center of the sensitivity grid and sufficient for all four datasets), where $\Omega$ is the set of observed (non-zero) entries of $\mathbf{T}$: only the true labels and the similarity blocks are fitted, so the low-rank projection is free to move the zero-valued (unknown) positions rather than being pinned to the fill. Because the similarity blocks are dense and observed, this is close to the \emph{denoising} mode of BNNR: the similarity structure regularizes the low-rank projection of the fill. The drug--disease block is recovered as $\mathbf{M}_{\text{bnnr}} = \mathbf{X}_{[0:n_d,\,n_d:n_d+n_s]}$ and clipped to $[0,1]$. Treating the similarity structure as part of the low-rank block---rather than as a separate constraint---is what lets the completion borrow strength across the joint graph. A symmetric block with rank cap $400$ and the observed-nonzero mask is used (the rank cap matters on the larger datasets, whose association matrices have higher intrinsic rank). This is the matrix geometry of the rank prior; the next subsection lifts the same prior to a tensor geometry that keeps the individual similarity views instead of fusing them.
 
 \subsubsection{Tensor Geometry: Nuclear Norm over the Per-Modality Slices}
 
@@ -247,7 +247,7 @@ GMC-E is \emph{not} proposed as a methodological contribution: its per-dataset c
 \end{cases}
 \label{eq:gmc-e}
 \end{equation}
-with per-dataset composition and filter settings selected on the reported test folds (hence optimistically biased): Fdataset $=$ GMC$+$DNMFDDA, filter $\alpha=0.1$; Cdataset $=$ GMC$+$DNMFDDA, blend $\alpha=0.2,\beta=0.3$; Ydataset $=$ GMC$+$OMC$+$DNMFDDA$+$MSBMF, blend $\alpha=0.1,\beta=0.5$. On CTDdataset2023 no score-level fusion improves over GMC itself (the best ensemble reaches 0.3680 vs.\ GMC 0.3714), so GMC-E equals GMC there---GMC already extracts the full low-rank signal on that dataset.
+with per-dataset composition and filter settings selected on the reported test folds (hence optimistically biased) from a search over candidate fusion rules, filter strengths, and blending weights: Fdataset $=$ GMC$+$DNMFDDA, filter $\alpha=0.1$; Cdataset $=$ GMC$+$DNMFDDA, blend $\alpha=0.2,\beta=0.3$; Ydataset $=$ GMC$+$OMC$+$DNMFDDA$+$MSBMF, blend $\alpha=0.1,\beta=0.5$. On CTDdataset2023 no score-level fusion improves over GMC itself (the best ensemble reaches 0.3680 vs.\ GMC 0.3714), so GMC-E equals GMC there---GMC already extracts the full low-rank signal on that dataset.
 
 \subsection{Evaluation Protocol}
 \label{sec:eval}
@@ -337,7 +337,7 @@ Dataset & Method & AUROC & AUPR & P@10 & P@20 \\
 \end{tabular}
 \end{table*}
 
-Three observations stand out. First, the winner under CVa is the completion family, not the propagation family: the completion baselines (BNNR, OMC, ITRPCA, DNMFDDA, MSBMF) dominate the label-propagation and diffusion methods (multiGMF, HGIMC, DDA-SKF) on every dataset, and NMF-DR---which diffuses associations through the similarity graphs and factorizes the diffused matrix---attains the lowest AUPR (0.03--0.07) while its AUROC remains $\approx 0.69$ (Table~\ref{tab:main_results}): its transductive diffusion scores are dominated by neighborhood association density, so under the $\approx 1{:}95$ imbalance its held-out positives reach only the mid-ranks, and AUPR---set by the extreme top of the ranking---collapses. This confirms that random-entry masking is a low-rank completion problem, not a propagation problem. Second, GMC beats the entire completion family: it couples global low-rank capacity with the cold-start graph prior, and the tensor$+$block rank fusion completes the model where the block view alone is weakest (Section~\ref{sec:ablation}): on Fdataset and Cdataset the block view alone already attains the full-model AUPR, while the tensor view is decisive on CTDdataset2023 ($+0.045$ AUPR, $p=0.002$) and adds $+0.011$ on Ydataset. Third, the headroom from predictor-level fusion is substantial: the upper reference GMC-E---GMC fused with the complementary completion predictors, with composition selected on the test folds---gains $+0.028$, $+0.017$, $+0.043$, $+0.024$ AUPR over the strongest single baseline on Fdataset, Cdataset, CTDdataset2023, and Ydataset (Section~\ref{sec:upper}).
+Three observations stand out. First, under this protocol the winner is the completion family, not the propagation family: the completion baselines (BNNR, OMC, ITRPCA, DNMFDDA, MSBMF) dominate the label-propagation and diffusion methods (multiGMF, HGIMC, DDA-SKF) on every dataset, and NMF-DR---which diffuses associations through the similarity graphs and factorizes the diffused matrix---attains the lowest AUPR (0.03--0.07) while its AUROC remains $\approx 0.69$ (Table~\ref{tab:main_results}): its transductive diffusion scores are dominated by neighborhood association density, so under the $\approx 1{:}95$ imbalance its held-out positives reach only the mid-ranks, and AUPR---set by the extreme top of the ranking---collapses. This confirms that random-entry masking is a low-rank completion problem, not a propagation problem. Second, GMC beats the entire completion family: it couples global low-rank capacity with the cold-start graph prior, and the tensor$+$block rank fusion completes the model where the block view alone is weakest (Section~\ref{sec:ablation}): on Fdataset and Cdataset the block view alone already attains the full-model AUPR, while the tensor view is decisive on CTDdataset2023 ($+0.045$ AUPR, $p=0.002$) and adds $+0.011$ on Ydataset. Third, the headroom from predictor-level fusion is substantial: the upper reference GMC-E---GMC fused with the complementary completion predictors, with composition selected on the test folds---gains $+0.028$, $+0.017$, $+0.043$, $+0.024$ AUPR over the strongest single baseline on Fdataset, Cdataset, CTDdataset2023, and Ydataset (Section~\ref{sec:upper}).
 
 \begin{figure*}[tb]
 \centering
@@ -382,18 +382,18 @@ full GMC (\gmcmode{0}) & 0.6579 & 0.7252 & 0.3693 & 0.7412 \\
 
 The block completion is the engine: removing it (\gmcmode{B}) is the largest single drop on every dataset---$0.073$ on Fdataset, $0.070$ on Cdataset, $0.039$ on CTDdataset2023, and $0.120$ on Ydataset (all $p=0.002$)---and on Fdataset and Cdataset the block-with-fill model alone already attains the full-model AUPR ($0.6572$ vs.\ $0.6579$; $0.7259$ vs.\ $0.7252$). The tensor view supplies the complementary capacity exactly where the block view is weakest: removing it (\gmcmode{C}) is neutral on Fdataset and Cdataset ($-0.001$/$+0.001$, $p>0.6$) but costs $0.045$ AUPR on CTDdataset2023 and $0.011$ on Ydataset (both $p=0.002$), matching the gains the tensor adds there. The cold-start fill is load-bearing on every dataset (\gmcmode{A}: $-0.011$/$-0.010$/$-0.042$/$-0.006$ on F/C/CTD/Y, $p\le0.014$), most on CTDdataset2023, where it ties the tensor view as the largest per-mode loss: all-zero rows and columns carry no label evidence, so without the neighbor-derived prior the low-rank completion has nothing to constrain or pull from exactly those positions.
 
-The scale-free rank fusion is a numerical detail rather than a fourth architectural component: it exists so that the block and tensor readouts---which live on different scales---can be combined at fixed equal weights without per-dataset tuning. We verified this choice directly by substituting the raw weighted sum for the rank-normalized one; AUPR changes by $|\Delta|\le0.0003$ on every dataset (all $p>0.15$). At the operating point the result is therefore invariant to how the two readouts are normalized before the fixed-weight combination.
+The scale-free rank fusion is a numerical detail rather than a fourth architectural component: it exists so that the block and tensor readouts---which live on different scales---can be combined at fixed equal weights. We verified this choice directly by substituting the raw weighted sum for the rank-normalized one; AUPR changes by $|\Delta|\le0.0003$ on every dataset (all $p>0.15$). At the operating point the result is therefore invariant to how the two readouts are normalized before the fixed-weight combination.
 
 Two structural controls from the unified-config grid refine this reading; both are evaluated at fixed tensor-heavy weights ($w_{\text{b}}=0.2$, $w_{\text{t}}=0.8$) as a diagnostic, so their reported effects are conservative: because the observed-mask and rank-cap choices act on the block view, which carries only $0.2$ weight in that fusion, a block-side effect on the fused score is attenuated relative to the reported equal weights. Constraining only the observed (non-zero) block entries instead of the full block is load-bearing where the tensor view matters: it gains $0.007$ AUPR on CTDdataset2023 and $0.021$ on Ydataset at these fixed weights. The rank cap is not a sensitive choice: moving it from 200 to 400 changes AUPR by $0.008$ on CTDdataset2023 and $-0.006$ on Ydataset at the same weights, and at the reported equal weights the parameter analysis (Table~\ref{tab:param}) re-checks the choice directly ($0.3548$ at rank cap 200 vs.\ the center $0.3693$ on CTDdataset2023), so the $400$ budget is a conservative default rather than a tuned setting.
 
 \subsection{Parameter Sensitivity}
 \label{sec:param}
 
-GMC uses one shared hyperparameter set---the block-completion weighting $\alpha=0.5$, 40 iterations, rank cap 400, $k=10$ cold-start KNN fill, and equal ($0.5/0.5$) block/tensor fusion weights. To test whether the reported numbers depend on a fragile tuning of these settings, Table~\ref{tab:param} and Figure~\ref{fig:param} perturb each hyperparameter one at a time around this center, holding all others fixed, on an \emph{equidistant 5-point grid} over the fresh validation folds (the folds on which the settings were selected): $\alpha \in \{0.1,0.3,0.5,0.7,0.9\}$, maxiter $\in \{20,30,40,50,60\}$, rank cap $\in \{200,300,400,500,600\}$, $k \in \{5,10,15,20,25\}$, and $w_t \in \{0.1,0.3,0.5,0.7,0.9\}$ (with $w_{\text{b}}=1-w_t$), all five axes on all four datasets (the Fdataset, Cdataset, and CTDdataset2023 grids are complete; the Ydataset grid is being regenerated, 2026-08-16, and its measured points are shown). Across the interior of the grid GMC is flat: every setting that does not suppress one of the model's components deviates from the center by at most $0.018$ AUPR (CTDdataset2023 $0.3514$ at 20 iterations; the next largest is $0.016$ at $w_t=0.3$), within the fold-level standard-deviation band ($0.010$--$0.028$), so the reported results do not sit on a tuned peak. The informative exceptions are exactly the settings that eliminate a component. First, a nearly absent nuclear-norm term ($\alpha=0.1$) costs $0.044$ AUPR on Fdataset and $0.036$ on Cdataset ($p=0.002$), where low-rank completion is the main engine. Second, the one-sided fusion weights remove one completion view and reproduce the ablation pattern (Table~\ref{tab:ablation}): $w_t=0.1$ (block-only) is neutral on Fdataset and Cdataset, where the block view already carries the model, but costs $0.035$ AUPR on CTDdataset2023 ($p=0.002$), where the tensor view is decisive; $w_t=0.9$ (tensor-only) costs $0.041$/$0.043$ AUPR on Cdataset/Fdataset, and on CTDdataset2023 the balanced $0.5/0.5$ point is also better than either one-sided weight ($0.3693$ vs.\ $0.3341$ at $w_t=0.1$ and $0.3546$ at $w_t=0.9$). Even at the worst grid point GMC remains competitive with the completion baselines (Fdataset $0.615$ at $w_t=0.9$ vs.\ BNNR $0.600$ and OMC $0.611$; CTDdataset2023 $0.334$ at $w_t=0.1$ vs.\ ITRPCA $0.329$). GMC is therefore insensitive to hyperparameter choice around its operating point, degrading only when an entire view is removed: the reported equal-weight center is a robust default, not a tuned peak.
+GMC uses the hyperparameter set $\alpha=0.5$, 40 iterations, rank cap 400, $k=10$ cold-start KNN fill, and equal ($0.5/0.5$) block/tensor fusion weights. To test whether the reported numbers depend on a fragile tuning of these settings, Table~\ref{tab:param} and Figure~\ref{fig:param} perturb each hyperparameter one at a time around this center, holding all others fixed, on an \emph{equidistant 5-point grid} over the fresh validation folds (the folds on which the settings were selected): $\alpha \in \{0.1,0.3,0.5,0.7,0.9\}$, maxiter $\in \{20,30,40,50,60\}$, rank cap $\in \{200,300,400,500,600\}$, $k \in \{5,10,15,20,25\}$, and $w_t \in \{0.1,0.3,0.5,0.7,0.9\}$ (with $w_{\text{b}}=1-w_t$), all five axes on all four datasets. Across the interior of the grid GMC is flat: every setting that does not suppress one of the model's components deviates from the center by at most $0.018$ AUPR (CTDdataset2023 $0.3514$ at 20 iterations; the next largest is $0.016$ at $w_t=0.3$), within the fold-level standard-deviation band ($0.010$--$0.028$), so the reported results do not sit on a tuned peak. The informative exceptions are exactly the settings that eliminate a component. First, a nearly absent nuclear-norm term ($\alpha=0.1$) costs $0.044$ AUPR on Fdataset and $0.036$ on Cdataset ($p=0.002$), where low-rank completion is the main engine. Second, the one-sided fusion weights remove one completion view and reproduce the ablation pattern (Table~\ref{tab:ablation}): $w_t=0.1$ (block-only) is neutral on Fdataset and Cdataset, where the block view already carries the model, but costs $0.035$ AUPR on CTDdataset2023 ($p=0.002$), where the tensor view is decisive; $w_t=0.9$ (tensor-only) costs $0.041$/$0.043$ AUPR on Cdataset/Fdataset, and on Ydataset, where the block view is the dominant carry (Table~\ref{tab:ablation}), it is the single worst grid point ($-0.064$, $p=0.002$) while block-only is nearly neutral there ($-0.007$). Even at the worst grid point GMC remains competitive with the completion baselines (Fdataset $0.615$ at $w_t=0.9$ vs.\ BNNR $0.600$ and OMC $0.611$; CTDdataset2023 $0.334$ at $w_t=0.1$ vs.\ ITRPCA $0.329$). GMC is therefore insensitive to hyperparameter choice around its operating point, degrading only when an entire view is removed: the reported equal-weight center is a robust default, not a tuned peak.
 
 \begin{table}[tb]
 \centering
-\caption{Parameter sensitivity (AUPR, fresh validation folds). Each row perturbs one hyperparameter around the center (first row), holding the others at their reported values, on an equidistant 5-point grid. The Fdataset, Cdataset, and CTDdataset2023 grids are complete; ``--'' marks Ydataset grid points not yet computed (its grid is still running, 2026-08-16). Interior settings stay within $0.018$ AUPR of the center; the settings that suppress one of the model's components ($\alpha=0.1$, one-sided $w_t$) deviate more (see text).}
+\caption{Parameter sensitivity (AUPR, fresh validation folds). Each row perturbs one hyperparameter around the center (first row), holding the others at their reported values, on an equidistant 5-point grid. All four grids are complete. Interior settings stay within $0.018$ AUPR of the center; the settings that suppress one of the model's components ($\alpha=0.1$, one-sided $w_t$) deviate more (see text).}
 \label{tab:param}
 \small
 \begin{tabular}{lcccc}
@@ -401,26 +401,26 @@ GMC uses one shared hyperparameter set---the block-completion weighting $\alpha=
 Setting & Fdataset & Cdataset & CTDdataset2023 & Ydataset \\
 \midrule
 center (fresh folds) & 0.6579 & 0.7252 & 0.3693 & 0.7412 \\
-$\alpha = 0.1$ & 0.6138 & 0.6891 & 0.3767 & -- \\
+$\alpha = 0.1$ & 0.6138 & 0.6891 & 0.3767 & 0.7304 \\
 $\alpha = 0.3$ & 0.6474 & 0.7152 & 0.3740 & 0.7398 \\
 $\alpha = 0.7$ & 0.6618 & 0.7292 & 0.3631 & 0.7395 \\
-$\alpha = 0.9$ & 0.6624 & 0.7300 & 0.3597 & -- \\
+$\alpha = 0.9$ & 0.6624 & 0.7300 & 0.3597 & 0.7370 \\
 20 iterations & 0.6583 & 0.7258 & 0.3514 & 0.7259 \\
-30 iterations & 0.6613 & 0.7278 & 0.3620 & -- \\
-50 iterations & 0.6544 & 0.7217 & 0.3718 & -- \\
-60 iterations & 0.6509 & 0.7183 & 0.3744 & -- \\
-rank cap 200 & 0.6572 & 0.7225 & 0.3548 & -- \\
-rank cap 300 & 0.6582 & 0.7244 & 0.3653 & -- \\
-rank cap 500 & 0.6582 & 0.7251 & 0.3702 & -- \\
-rank cap 600 & 0.6582 & 0.7254 & 0.3711 & -- \\
-$k = 5$ & 0.6617 & 0.7288 & 0.3648 & -- \\
-$k = 15$ & 0.6573 & 0.7228 & 0.3646 & -- \\
-$k = 20$ & 0.6559 & 0.7216 & 0.3647 & -- \\
-$k = 25$ & 0.6565 & 0.7205 & 0.3680 & -- \\
-$w_t = 0.1$ & 0.6579 & 0.7268 & 0.3341 & -- \\
-$w_t = 0.3$ & 0.6605 & 0.7282 & 0.3532 & -- \\
-$w_t = 0.7$ & 0.6482 & 0.7139 & 0.3690 & -- \\
-$w_t = 0.9$ & 0.6147 & 0.6838 & 0.3546 & -- \\
+30 iterations & 0.6613 & 0.7278 & 0.3620 & 0.7358 \\
+50 iterations & 0.6544 & 0.7217 & 0.3718 & 0.7437 \\
+60 iterations & 0.6509 & 0.7183 & 0.3744 & 0.7451 \\
+rank cap 200 & 0.6572 & 0.7225 & 0.3548 & 0.7358 \\
+rank cap 300 & 0.6582 & 0.7244 & 0.3653 & 0.7406 \\
+rank cap 500 & 0.6582 & 0.7251 & 0.3702 & 0.7411 \\
+rank cap 600 & 0.6582 & 0.7254 & 0.3711 & 0.7410 \\
+$k = 5$ & 0.6617 & 0.7288 & 0.3648 & 0.7387 \\
+$k = 15$ & 0.6573 & 0.7228 & 0.3646 & 0.7417 \\
+$k = 20$ & 0.6559 & 0.7216 & 0.3647 & 0.7410 \\
+$k = 25$ & 0.6565 & 0.7205 & 0.3680 & 0.7416 \\
+$w_t = 0.1$ & 0.6579 & 0.7268 & 0.3341 & 0.7343 \\
+$w_t = 0.3$ & 0.6605 & 0.7282 & 0.3532 & 0.7404 \\
+$w_t = 0.7$ & 0.6482 & 0.7139 & 0.3690 & 0.7282 \\
+$w_t = 0.9$ & 0.6147 & 0.6838 & 0.3546 & 0.6775 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -428,7 +428,7 @@ $w_t = 0.9$ & 0.6147 & 0.6838 & 0.3546 & -- \\
 \begin{figure}[tb]
 \centering
 \includegraphics[width=\columnwidth]{figures/fig4_param}
-\caption{Parameter sensitivity (AUPR, fresh validation folds): one panel per hyperparameter axis, showing AUPR as a function of the perturbed value (markers) against the center (dashed line) for all four datasets. The equidistant 5-point grid is complete on Fdataset, Cdataset, and CTDdataset2023; the Ydataset grid is still running and shows only its measured points. The interior of every axis is flat; the visible drops are the settings that suppress one of the model's components ($\alpha=0.1$ on the $\alpha$ panel, one-sided $w_t$ on the $w_t$ panel), confirming the reported equal-weight center is a robust default rather than a tuned peak.}
+\caption{Parameter sensitivity (AUPR, fresh validation folds): one panel per hyperparameter axis, showing AUPR as a function of the perturbed value (markers) against the center (dashed line) for all four datasets. The equidistant 5-point grid is complete on all four datasets. The interior of every axis is flat; the visible drops are the settings that suppress one of the model's components ($\alpha=0.1$ on the $\alpha$ panel, one-sided $w_t$ on the $w_t$ panel), confirming the reported equal-weight center is a robust default rather than a tuned peak.}
 \label{fig:param}
 \end{figure}
 

@@ -490,10 +490,10 @@ def fig2_main():
 # not as a 4th bar. uni_obs_rc400_nofill (removes BOTH fill and tensor) is a
 # superseded control and no longer plotted.
 ABLATION_MODES = [
-    ("full", "GMC\n(full)", C_GMC),
-    ("ablate_fill", "−fill\n(A)", "#8fb3c9"),
-    ("ablate_block", "−block\n(B)", "#7f9cb5"),
-    ("uni_obs_rc400_nt", "−tensor\n(C)", "#a895c9"),
+    ("uni_obs_rc400_t50", "full", C_GMC),      # GMC 完整模型
+    ("ablate_fill",       "model A", "#8fb3c9"),
+    ("ablate_block",      "model B", "#7f9cb5"),
+    ("uni_obs_rc400_nt",  "model C", "#a895c9"),
 ]
 
 
@@ -544,9 +544,8 @@ def fig3_ablation():
         plt.Rectangle((0, 0), 1, 1, facecolor="#a895c9", edgecolor="black", linewidth=0.5),
     ]
     fig.legend(handles,
-               ["GMC (full model)", "− cold-start KNN fill (mode A)",
-                "− block completion view (mode B)",
-                "− tensor completion view (mode C)"],
+               ["full (GMC)", "A − cold-start KNN fill",
+                "B − block completion view", "C − tensor completion view"],
                ncol=2, loc="upper center", bbox_to_anchor=(0.5, 1.0),
                fontsize=7.6, frameon=True, edgecolor="#cbd5e1")
     fig.suptitle("Remove-one-module ablation of GMC (AUPR, fresh validation folds)",
@@ -573,11 +572,11 @@ AXES = [
 ]
 # config-name suffix -> numeric value on each axis (generalized decoder)
 _AXIS_DECODE = {
-    "alpha": lambda s: int(s) / 100.0,          # 01,03,07,09 -> 0.1..0.9
+    "alpha": lambda s: 0.1 * int(s),            # 01,03,07,09 -> 0.1..0.9
     "maxiter": lambda s: int(s),                # 20,30,50,60
     "rc": lambda s: int(s),                     # 200,300,500,600
     "k": lambda s: int(s),                      # 5,15,20,25
-    "wt": lambda s: int(s) / 100.0,             # 01,03,07,09 -> 0.1..0.9
+    "wt": lambda s: 0.1 * int(s),               # 01,03,07,09 -> 0.1..0.9
 }
 # config-name prefix -> axis key (iter -> maxiter; the rest are the axis name)
 _AXIS_PREFIX = {"alpha": "alpha", "iter": "maxiter",
@@ -618,6 +617,15 @@ def fig4_param():
             ys = [pts[(key, x)] for x in xs]
             ax.plot(xs, ys, "o-", label=ds, color=DS_COLORS[ds],
                     lw=1.6, markersize=4)
+        allx = sorted({x for ds in DATASETS
+                       for (k, x) in _param_pts(ds).items() if k == key})
+        if key in ("alpha", "wt"):
+            ax.set_xlim(0, 1)
+        elif allx:
+            lo, hi = min(allx), max(allx)
+            pad = 0.04 * (hi - lo)
+            ax.set_xlim(lo - pad, hi + pad)
+
         ax.axvline(center, color=DARK, ls="--", lw=1.0, alpha=0.6)
         ax.set_title(label, fontsize=9.5)
         ax.set_ylabel("AUPR" if ax is axes[0] else "", fontsize=8)
