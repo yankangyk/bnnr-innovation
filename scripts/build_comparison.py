@@ -1,5 +1,4 @@
-"""Assemble the unified comparison table (GMC/ensemble vs published baselines)
-under CVa.
+"""Assemble the unified comparison table (GMC vs published baselines) under CVa.
 
 Reads per-method summary CSVs from Results/summaries/ and writes:
   Results/summaries/COMPARISON_summary.csv — long-format master table
@@ -7,10 +6,8 @@ Reads per-method summary CSVs from Results/summaries/ and writes:
 
 GMC (ours) is the self-implemented multi-view low-rank completion model from
 gmc/model.py (run via scripts/run_gmc.py); since the 2026-08-10 unification it
-is ONE config across all four datasets (tag: gmc_unified). The ensemble GMC-E
-(our optimal model, upper reference only) is assembled by scripts/run_ensemble.py
-save. SGLP is the predecessor of GMC (replaced, not a comparison baseline) and is
-deliberately not included here.
+is ONE config across all datasets (tag: gmc_unified). SGLP is the predecessor
+of GMC (replaced, not a comparison baseline) and is deliberately not included here.
 
 Usage: python scripts/build_comparison.py
 """
@@ -27,8 +24,6 @@ RESULT_DIR = os.path.join(ROOT, "Results", "summaries")
 # gmc_dual_knn) are superseded and no longer mapped.
 NAME_MAP = {
     "gmc_unified": "GMC (ours)",
-    "ensemble": "GMC-E (ours)",
-    "ensemble_dual": "GMC-E (ours)",
     "baseline_BNNR": "BNNR",
     "baseline_HGIMC": "HGIMC",
     "baseline_HGIMC_single": "HGIMC (ChemS+PhS)",
@@ -46,7 +41,7 @@ NAME_MAP = {
 # Method ordering (comparison methods first, ablation reference, ours last).
 ORDER = ["BNNR", "OMC", "ITRPCA", "DNMFDDA", "HGIMC", "MSBMF", "DDA-SKF",
          "NMF-DR", "multiGMF (ChemS+PhS)", "multiGMF", "WKNN fill only",
-         "GMC (ours)", "GMC-E (ours)"]
+         "GMC (ours)"]
 
 
 def load_summaries():
@@ -80,10 +75,6 @@ def main():
     if df.empty:
         print("No summaries found — run the baselines first.")
         return
-    # Dedupe: ensemble tags share "GMC-E (ours)"; keep the best-AUPR config per
-    # dataset so "GMC-E (ours)" is the upper-reference winner.
-    df = df.sort_values("AUPR", ascending=False).drop_duplicates(
-        ["dataset", "method"]).reset_index(drop=True)
     # Long format
     df = df.sort_values(["dataset", "method"]).reset_index(drop=True)
     df.to_csv(os.path.join(RESULT_DIR, "COMPARISON_summary.csv"), index=False)

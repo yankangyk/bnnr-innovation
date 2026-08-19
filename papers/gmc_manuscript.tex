@@ -1,66 +1,53 @@
 % GMC: Graph Multi-view Completion for Drug Repositioning
-% Bioinformatics (OUP) submission
-%
-% Template: oup-authoring-template v1.3 (2026/05/28)
-%   - modern:  Bioinformatics journal house style (required)
-%   - webpdf:  hyperlink-aware PDF output
-%   - large:   standard page dimensions
+% Submitted to: Computers in Biology and Medicine (CBM), Elsevier
+% Template: elsarticle (Elsevier standard LaTeX template)
 
-% ===== flushend prevention (MUST come before \documentclass) =====
-\makeatletter
-\expandafter\def\csname ver@flushend.sty\endcsname{9999/99/99}
-\makeatother
-
-\documentclass[webpdf,modern,large]{oup-authoring-template}
-
-% --- OUP template metadata ---------------------------------------------------
-\journaltitle{[Journal Name]}
-\pubyear{[Year]}
-\copyrightyear{[Year]}
-\vol{[Vol]}
-\issue{[Issue]}
-\DOI{[DOI to be added]}
+\documentclass[preprint,review,3p]{elsarticle}
 
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{amsmath}
 \usepackage{amssymb}
-\newcounter{algline}
 \usepackage{multirow}
-\newcommand{\gmcmode}[1]{\emph{mode~#1}}   % ablation remove-one-at-a-time mode label
 \usepackage{xcolor}
 \usepackage{hyperref}
+\usepackage{lineno}
+\modulolinenumbers[5]
 
-% --- Template bug workarounds (cls v1.3) ---
-\makeatletter
-\providecommand{\authormark}[1]{}
-\long\def\abstract#1{\let\subheading\abstsubheading\global\def\@abstract{#1}}
-\let\flushend\relax
-\def\societylogo{}
-\makeatother
-
-
+\newcommand{\gmcmode}[1]{\emph{mode~#1}}   % ablation remove-one-at-a-time mode label
 \newcommand{\R}{\mathbb{R}}
 \newcommand{\E}{\mathbb{E}}
 \newcommand{\tr}{\mathrm{tr}}
 
+\journal{Computers in Biology and Medicine}
+
+\newcounter{algline}
+
 \begin{document}
+
+\begin{frontmatter}
 
 \title{GMC: Graph Multi-view Completion for Drug Repositioning}
 
 \author{[Author Name(s)]}
 \address{[Affiliation, Department, University, City, Country]}
-\corresp{[Corresponding author: email@example.com]}
+\ead{[Corresponding author email]}
 
-\date{}
+\begin{abstract}
+\textbf{Background:} Drug repositioning identifies new therapeutic uses for approved drugs, reducing the cost and risk of traditional drug development. Under the random-entry masking protocol (CVa) used by most multi-similarity methods, the prediction task is best viewed as a matrix completion problem, where global low-rank factorizations dominate. However, these methods discard local neighborhood structure and fuse multiple similarity views implicitly, allowing view-specific errors to propagate uncorrected.
 
-\abstract{%
-\textbf{Motivation:} Drug repositioning identifies new therapeutic uses for approved drugs at reduced cost and risk. Under the random-entry masking protocol (CVa) used by most multi-similarity methods, the prediction task is best viewed as a \emph{matrix completion} problem, and the winning methods are all global low-rank factorizations or completions. Their accuracy is limited by two issues: (i)~pure low-rank completion discards the local neighborhood structure that label-propagation methods exploit, and (ii)~the fusion of multiple similarity views is left implicit in a single factorization objective, so view-specific errors propagate uncorrected. We show that a multi-view low-rank completion model coupling a cold-start-restricted KNN fill with scale-free fusion substantially improves association prediction.\par
-\textbf{Results:} We propose GMC (Graph Multi-view Completion), a single nuclear-norm completion solved in two geometries of the same similarity data---a matrix geometry on the joint bipartite+similarity block, and a tensor geometry over the per-similarity tensors---over a cold-start-restricted fill that initializes novel rows and columns, combined by scale-free rank fusion. Under 10-fold random-entry cross-validation (CVa), GMC attains AUPR of 0.6569, 0.7285, 0.3714, and 0.7404 on Fdataset, Cdataset, CTDdataset2023, and Ydataset, attaining the highest mean AUPR on all four datasets (significant at $p=0.002$ against every published baseline on CTDdataset2023 and Ydataset; on Fdataset and Cdataset ahead of DNMFDDA, the closest competitor, without reaching significance). As an upper reference---not a proposed method---score-level fusion of GMC with the complementary completion-family predictors (GMC-E) raises AUPR to 0.6730, 0.7394, and 0.7522 on Fdataset, Cdataset, and Ydataset (on CTDdataset2023 no fusion combination improves on GMC, so GMC-E equals GMC there, 0.3714), quantifying the headroom available from predictor-level fusion.\par
-\textbf{Availability:} Source code and datasets are available at [GitHub URL: to be added upon publication].\par
-\textbf{Contact:} [Corresponding author email: to be added]%
-}
-\maketitle
+\textbf{Methods:} We propose GMC (Graph Multi-view Completion), a single nuclear-norm completion solved in two complementary geometries of the same similarity data: a matrix geometry on the fused bipartite+similarity block, and a tensor geometry over the per-similarity tensors. A cold-start-restricted KNN fill initializes the solver on novel rows and columns without disturbing observed entries. The two readouts are rank-normalized and combined at fixed equal weights into one estimator.
+
+\textbf{Results:} Under 10-fold random-entry cross-validation (CVa) on four benchmark datasets (Fdataset, Cdataset, CTDdataset2023, Ydataset), GMC attains AUPR of 0.6569, 0.7285, 0.3714, and 0.7404, respectively---the highest mean AUPR on all four datasets. The improvements are significant at $p=0.002$ against every published baseline on CTDdataset2023 and Ydataset. On Fdataset and Cdataset, GMC leads DNMFDDA, the closest competitor, by $+0.012$ and $+0.006$ AUPR (not significant). Ablation and sensitivity analyses confirm each architectural component earns its keep, and the model degrades gracefully under increased data sparsity.
+
+\textbf{Conclusions:} GMC demonstrates that coupling global low-rank completion with local graph structure through multi-view fusion substantially improves drug--disease association prediction under random-entry masking, without requiring per-dataset tuning.
+\end{abstract}
+
+\begin{keyword}
+drug repositioning \sep matrix completion \sep tensor completion \sep low-rank approximation \sep multi-view fusion \sep graph-based learning
+\end{keyword}
+
+\end{frontmatter}
 
 \section{Introduction}
 
@@ -82,13 +69,13 @@ We propose \textbf{GMC} (Graph Multi-view Completion), a new model built on two 
 
 GMC is a single low-rank completion prior, instantiated in two geometries of the same similarity data and combined into one estimator, with the fill acting as the solver's initialization on novel rows and columns. The ablation study (Section~\ref{sec:results}) isolates each ingredient's contribution.
 
-We evaluate GMC on the four benchmarks under 10-fold CVa. GMC attains AUPR of 0.6569, 0.7285, 0.3714, and 0.7404 on Fdataset, Cdataset, CTDdataset2023, and Ydataset, attaining the highest mean AUPR on all four datasets: on CTDdataset2023 and Ydataset it is significantly ahead of every published baseline ($p=0.002$, paired fold-level Wilcoxon); on Fdataset and Cdataset it leads DNMFDDA, the closest competitor, by $+0.012$ and $+0.006$ AUPR (not significant). We also report \textbf{GMC-E}, the score-level fusion of GMC with the complementary completion predictors (DNMFDDA, ITRPCA, OMC, MSBMF), optionally refined by the bilateral filter. GMC-E is \emph{not} proposed as a methodological contribution: its composition and filter settings are selected on the test folds, so it is an \emph{upper reference} quantifying the headroom available from predictor-level fusion rather than a fair model comparison. It attains AUPR of 0.6730, 0.7394, 0.3714, and 0.7522---the highest on all four datasets (on CTDdataset2023 no fusion combination exceeds GMC itself, so GMC-E equals GMC there).
+We evaluate GMC on the four benchmarks under 10-fold CVa. GMC attains AUPR of 0.6569, 0.7285, 0.3714, and 0.7404 on Fdataset, Cdataset, CTDdataset2023, and Ydataset, attaining the highest mean AUPR on all four datasets: on CTDdataset2023 and Ydataset it is significantly ahead of every published baseline ($p=0.002$, paired fold-level Wilcoxon); on Fdataset and Cdataset it leads DNMFDDA, the closest competitor, by $+0.012$ and $+0.006$ AUPR (not significant).
 
 \section{Materials and Methods}
 
 \subsection{Datasets and Similarities}
 
-We evaluate on four drug--disease association benchmarks from the multi-similarity literature \cite{yang2020msbmf}. Each dataset provides an association matrix $\mathbf{A} \in \{0,1\}^{n_d \times n_s}$ (drugs $\times$ diseases) together with five drug--drug similarity matrices --- chemical structure (ChemS, Tanimoto over CDK fingerprints \cite{steinbeck2003}), ATC code (AtcS), side effects (SideS), drug--drug interactions (DDIS), and target profiles (TargetS) --- and two disease--disease similarity matrices --- phenotype (PhS, MimMiner over MeSH descriptions \cite{vandriel2006}) and disease ontology (DoS). These 5+2 similarity views are not part of the original published association benchmarks; they were computed by Yang \emph{et al.} \cite{yang2020msbmf} from public databases (DrugBank, SIDER, OMIM, and the disease ontology). Table~\ref{tab:datasets} summarizes the datasets. We use the mean-fused similarity views $\mathbf{W}_{rr} = \frac{1}{5}\sum_{m=1}^5 \mathbf{S}^{(m)}_{rr}$ and $\mathbf{W}_{dd} = \frac{1}{2}\sum_{m=1}^2 \mathbf{S}^{(m)}_{dd}$ for the block completion and the filter, while the tensor view uses the per-similarity matrices directly.
+We evaluate on four drug--disease association benchmarks from the multi-similarity literature \cite{yang2020msbmf}. Each dataset provides an association matrix $\mathbf{A} \in \{0,1\}^{n_d \times n_s}$ (drugs $\times$ diseases) together with five drug--drug similarity matrices --- chemical structure (ChemS, Tanimoto over CDK fingerprints \cite{steinbeck2003}), ATC code (AtcS), side effects (SideS), drug--drug interactions (DDIS), and target profiles (TargetS) --- and two disease--disease similarity matrices --- phenotype (PhS, MimMiner over MeSH descriptions \cite{vandriel2006}) and disease ontology (DoS). These 5+2 similarity views are not part of the original published association benchmarks; they were computed by Yang \emph{et al.} \cite{yang2020msbmf} from public databases (DrugBank, SIDER, OMIM, and the disease ontology). Table~\ref{tab:datasets} summarizes the datasets. We use the mean-fused similarity views $\mathbf{W}_{rr} = \frac{1}{5}\sum_{m=1}^5 \mathbf{S}^{(m)}_{rr}$ and $\mathbf{W}_{dd} = \frac{1}{2}\sum_{m=1}^2 \mathbf{S}^{(m)}_{dd}$ for the block completion, while the tensor view uses the per-similarity matrices directly.
 
 \begin{table*}[tb]
 \centering
@@ -181,31 +168,13 @@ with equal weights $w_{\text{b}}=w_{\text{t}}=0.5$---one estimator. Because the 
 \label{eq:restore}
 \end{equation}
 
-\subsubsection{Sparse Bilateral Graph Filter (used only by GMC-E)}
-
-In the rank-fused output the scores are used directly: rank-normalized values cannot be smoothed without destroying their ordering, so no post-hoc filter is applied to GMC's output. The sparse bilateral graph Laplacian low-pass filter is instead applied inside the GMC-E upper reference (Section~\ref{sec:gmc-e}), where the fused \emph{raw} scores---not rank-normalized ones---can be smoothed. The filter is the exact Cholesky solve
-\begin{equation}
-\mathbf{M}_{\text{ref}} = (\mathbf{I} + \alpha \mathbf{L}_{\text{dis}})^{-1} \cdot \mathbf{F}_{\text{fuse}} \cdot (\mathbf{I} + \alpha \mathbf{L}_{\text{drug}})^{-1},
-\label{eq:gf}
-\end{equation}
-on KNN-sparsified ($k=5$) similarity graphs
-\begin{equation}
-\mathbf{S}^{\text{(knn)}}_{ij} =
-\begin{cases}
-\mathbf{S}_{ij} & \text{if } j \in \mathcal{N}_k(i) \text{ or } i \in \mathcal{N}_k(j) \\
-0 & \text{otherwise}
-\end{cases}
-\label{eq:knn}
-\end{equation}
-(symmetrized via $\max(\mathbf{S}, \mathbf{S}^\top)$, diagonal restored to 1), with the symmetric normalized Laplacian $\mathbf{L} = \mathbf{I} - \mathbf{D}^{-1/2}\mathbf{S}^{\text{(knn)}}\mathbf{D}^{-1/2}$ \cite{chung1997}. This is the closed-form, single-pass analog of the iterated soft-coupling smoothing inside multi-similarity matrix factorization, and it supplies the local neighborhood refinement that pure completion lacks.
-
 \subsubsection{Relationship to the Completion and Propagation Families}
 
-GMC is a single model designed from one low-rank completion prior. It solves one nuclear-norm minimization in two complementary geometries of the same similarity data, and the local similarity-graph structure enters that single prior through the cold-start-restricted fill and the block geometry. Pure completion ignores local neighborhood structure (its low-rank projection is global), while pure label propagation lacks the global low-rank capacity to recover randomly masked entries (it only smooths what is already there). GMC addresses both within one estimator---the low-rank prior supplies the global recovery, and the fill and block geometry supply the local structure as part of the same completion objective---which is what lets it achieve its accuracy under CVa. Section~\ref{sec:results} additionally bounds the headroom available from fusing GMC with the complementary completion-family predictors at the score level (GMC-E, an upper reference).
+GMC is a single model designed from one low-rank completion prior. It solves one nuclear-norm minimization in two complementary geometries of the same similarity data, and the local similarity-graph structure enters that single prior through the cold-start-restricted fill and the block geometry. Pure completion ignores local neighborhood structure (its low-rank projection is global), while pure label propagation lacks the global low-rank capacity to recover randomly masked entries (it only smooths what is already there). GMC addresses both within one estimator---the low-rank prior supplies the global recovery, and the fill and block geometry supply the local structure as part of the same completion objective---which is what lets it achieve its accuracy under CVa.
 
 \subsubsection{Algorithm}
 
-Algorithm~\ref{alg:gmc} summarizes the complete procedure, and Figure~\ref{fig:framework} provides an overview of the GMC model and its GMC-E upper reference. The BNNR and ITRPCA solvers are re-implemented in Python (the published MATLAB implementations are used for the baselines); all GMC components therefore run entirely in Python.
+Algorithm~\ref{alg:gmc} summarizes the complete procedure, and Figure~\ref{fig:framework} provides an overview of the GMC model. The BNNR and ITRPCA solvers are re-implemented in Python (the published MATLAB implementations are used for the baselines); all GMC components therefore run entirely in Python.
 
 \begin{algorithm}[htbp]
 \caption{GMC: Graph Multi-view Completion}
@@ -228,33 +197,16 @@ $\hat{\mathbf{M}} \gets \mathbf{M} + (\mathbf{1} - \mathbf{1}_{\mathbf{M} \neq 0
 \begin{figure*}[tb]
 \centering
 \includegraphics[width=\textwidth]{figures/fig1_framework}
-\caption{Overview of the GMC model and its GMC-E upper reference. (a) The five drug and two disease similarity views are mean-fused into $\mathbf{W}_{rr}$ and $\mathbf{W}_{dd}$. (b) A cold-start-restricted fill seeds the completion solver: similarity-weighted neighbor averages are injected only into all-zero rows and columns of the masked matrix $\mathbf{M}$, yielding the initialization $\mathbf{F}$ without disturbing the observed entries. (c) GMC solves a single nuclear-norm completion in two geometries of the same similarity data: the matrix geometry completes the joint block $\left[\begin{smallmatrix}\mathbf{W}_{dd} & \mathbf{F}\\ \mathbf{F}^{\top} & \mathbf{W}_{rr}\end{smallmatrix}\right]$ (rank-capped ADMM, observed-nonzero mask), and the tensor geometry completes the per-similarity tensors. The two readouts of the same masked completion are rank-normalized ($\mathrm{rnorm01}$) and combined at fixed equal weights into one estimator, used directly (no post-hoc filter). GMC-E (an upper reference, not a proposed method) extends the score-level fusion to the complementary completion-family predictors, optionally smoothed by the KNN-sparsified bilateral graph filter.}
+\caption{Overview of the GMC model. (a) The five drug and two disease similarity views are mean-fused into $\mathbf{W}_{rr}$ and $\mathbf{W}_{dd}$. (b) A cold-start-restricted fill seeds the completion solver: similarity-weighted neighbor averages are injected only into all-zero rows and columns of the masked matrix $\mathbf{M}$, yielding the initialization $\mathbf{F}$ without disturbing the observed entries. (c) GMC solves a single nuclear-norm completion in two geometries of the same similarity data: the matrix geometry completes the joint block $\left[\begin{smallmatrix}\mathbf{W}_{dd} & \mathbf{F}\\ \mathbf{F}^{\top} & \mathbf{W}_{rr}\end{smallmatrix}\right]$ (rank-capped ADMM, observed-nonzero mask), and the tensor geometry completes the per-similarity tensors. The two readouts of the same masked completion are rank-normalized ($\mathrm{rnorm01}$) and combined at fixed equal weights into one estimator.}
 \label{fig:framework}
 \end{figure*}
-
-\subsection{GMC-E: An Upper Reference from Completion-Family Fusion}
-\label{sec:gmc-e}
-
-GMC-E is \emph{not} proposed as a methodological contribution: its per-dataset composition and filter settings are selected on the same test folds used for evaluation, so it is an \emph{upper reference}---quantifying the headroom available from predictor-level fusion---rather than a fair model comparison. The completion family's per-fold predictions are available once the completion baselines have been run. Because these predictors have decorrelated errors, fusing GMC's score with the complementary completion-family predictors---DNMFDDA, ITRPCA, OMC, MSBMF---is more robust than any single predictor, and the sparse bilateral filter applied to the fused raw scores (where rank preservation is not an issue) further refines the result:
-\begin{equation}
-\mathbf{M}_{\text{fuse}} = \mathrm{rankavg}\big(\mathbf{M}_{\text{GMC}},\, \{\mathbf{M}_{\text{comp}}\}\big), \qquad
-\mathbf{G}(\mathbf{M}) = (\mathbf{I}+\alpha\mathbf{L}_{\text{dis}})^{-1} \mathbf{M} (\mathbf{I}+\alpha\mathbf{L}_{\text{drug}})^{-1},
-\qquad
-\mathbf{M}_{\text{GMC-E}} = \begin{cases}
-\mathbf{M}_{\text{fuse}}, & \text{(avg)} \\
-\mathbf{G}(\mathbf{M}_{\text{fuse}}), & \text{(filt)} \\
-\beta\,\mathbf{G}(\mathbf{M}_{\text{fuse}}) + (1-\beta)\,\mathbf{M}_{\text{fuse}}, & \text{(blend)}
-\end{cases}
-\label{eq:gmc-e}
-\end{equation}
-with per-dataset composition and filter settings selected on the reported test folds (hence optimistically biased) from a search over candidate fusion rules, filter strengths, and blending weights: Fdataset $=$ GMC$+$DNMFDDA, filter $\alpha=0.1$; Cdataset $=$ GMC$+$DNMFDDA, blend $\alpha=0.2,\beta=0.3$; Ydataset $=$ GMC$+$OMC$+$DNMFDDA$+$MSBMF, blend $\alpha=0.1,\beta=0.5$. On CTDdataset2023 no score-level fusion improves over GMC itself (the best ensemble reaches 0.3680 vs.\ GMC 0.3714), so GMC-E equals GMC there---GMC already extracts the full low-rank signal on that dataset.
 
 \subsection{Evaluation Protocol}
 \label{sec:eval}
 
 We evaluate using 10-fold random-entry cross-validation (CVa), the protocol of the multi-similarity family: for each fold, 10\% of the positive associations (and an equal number of negatives) are held out, their entries are zeroed, and the task is to recover them. This is a matrix-completion setting. We report AUROC, AUPR, and top-$K$ precision at $K = 10, 20$. Given extreme class imbalance (positive rate $\le 1.1\%$ in all datasets), AUPR is the primary metric \cite{saito2015}. All experiments use a fixed seed (12345); folds are identical across methods, so per-fold paired comparisons are valid.
 
-GMC's hyperparameters (fill, block structure, rank cap, observation mask, and fusion weights) were selected on validation folds independent of the reported test folds: candidate settings were screened on a fresh independent CVa split (seed 24680), and the selected settings were then confirmed on the reported test folds. The two fold sets agree to within $\pm 0.002$ AUPR on every dataset, so the settings are not overfit to either fold set. Settings were frozen before the reported folds were scored, so the reported test folds did not participate in selection. GMC-E is exempt by design: as an upper reference, its composition is selected on the test folds (Section~\ref{sec:gmc-e}).
+GMC's hyperparameters (fill, block structure, rank cap, observation mask, and fusion weights) were selected on validation folds independent of the reported test folds: candidate settings were screened on a fresh independent CVa split (seed 24680), and the selected settings were then confirmed on the reported test folds. The two fold sets agree to within $\pm 0.002$ AUPR on every dataset, so the settings are not overfit to either fold set. Settings were frozen before the reported folds were scored, so the reported test folds did not participate in selection.
 
 Comparison methods are run with the authors' own code under the identical folds. We compare against nine published methods: BNNR (nuclear-norm completion, ChemS+PhS) \cite{yang2019}, HGIMC (ChemS+PhS and fused 5+2) \cite{yang2021hgimc}, MSBMF \cite{yang2020msbmf}, DDA-SKF (similarity kernel fusion + LapRLS) \cite{gao2022ddaskf}, OMC (overlap matrix completion with KNN cold-start fill) \cite{yang2019omc2}, ITRPCA (incomplete tensor robust PCA) \cite{yang2023itrpc}, DNMFDDA (deep semi-NMF) \cite{yang2025dnmf}, multiGMF (both the ChemS+PhS and full 5+2 configurations) \cite{multiGMFcode}, and NMF-DR (network-based non-negative matrix factorization, an independent method from an unrelated group) \cite{sadeghi2022}. AUPR differences between the model and each baseline are assessed with two-sided paired fold-level Wilcoxon signed-rank tests; the ten folds are paired by construction because every method is scored on the same held-out entries. (For $n=10$ folds, $p=0.002$ is the smallest two-sided $p$-value attainable, corresponding to all ten folds differing in the same direction.) To control the false-discovery rate across the eleven published baseline configurations per dataset, we additionally apply a Benjamini--Hochberg correction to the AUPR comparisons.
 
@@ -263,18 +215,18 @@ Comparison methods are run with the authors' own code under the identical folds.
 
 \subsection{Main Results}
 
-Table~\ref{tab:main_results} and Figure~\ref{fig:main} compare GMC against the nine published methods on all four datasets, alongside the GMC-E upper reference. GMC attains the highest mean AUPR on all four datasets: Fdataset 0.6569 ($+0.012$ over DNMFDDA 0.6453, not significant), Cdataset 0.7285 ($+0.006$ over DNMFDDA 0.7221, not significant), CTDdataset2023 0.3714 ($+0.043$ over ITRPCA 0.3287, $p=0.002$), and Ydataset 0.7404 ($+0.013$ over OMC 0.7279, $p=0.002$). Paired fold-level Wilcoxon tests on AUPR show GMC significantly ahead of every published baseline on CTDdataset2023 and Ydataset; on Fdataset and Cdataset the closest competitor is DNMFDDA, which GMC leads without reaching significance ($p=0.131$ on both, paired fold-level Wilcoxon). After Benjamini--Hochberg correction across the eleven published baseline configurations per dataset, GMC remains significantly ahead of every baseline on CTDdataset2023 and Ydataset ($11/11$) and of all but DNMFDDA on Fdataset and Cdataset ($10/11$). Table~\ref{tab:main_results} also lists GMC-E, an upper reference from predictor-level fusion; we discuss it separately in Section~\ref{sec:upper}.
+Table~\ref{tab:main_results} and Figure~\ref{fig:main} compare GMC against the nine published methods on all four datasets. GMC attains the highest mean AUPR on all four datasets: Fdataset 0.6569 ($+0.012$ over DNMFDDA 0.6453, not significant), Cdataset 0.7285 ($+0.006$ over DNMFDDA 0.7221, not significant), CTDdataset2023 0.3714 ($+0.043$ over ITRPCA 0.3287, $p=0.002$), and Ydataset 0.7404 ($+0.013$ over OMC 0.7279, $p=0.002$). Paired fold-level Wilcoxon tests on AUPR show GMC significantly ahead of every published baseline on CTDdataset2023 and Ydataset; on Fdataset and Cdataset the closest competitor is DNMFDDA, which GMC leads without reaching significance ($p=0.131$ on both, paired fold-level Wilcoxon). After Benjamini--Hochberg correction across the eleven published baseline configurations per dataset, GMC remains significantly ahead of every baseline on CTDdataset2023 and Ydataset ($11/11$) and of all but DNMFDDA on Fdataset and Cdataset ($10/11$).
 
 \begin{table*}[tb]
 \centering
-\caption{Comparison with published methods (mean $\pm$ std, 10-fold CVa). AUPR is the primary metric; the best AUPR per column among the proposed method and baselines is in \textbf{bold}. OMC / ITRPCA / DNMFDDA use the fused 5+2 input where their pipelines accept it; ``(C+Ph)'' denotes the ChemS+PhS input configuration. NMF-DR (Sadeghi et al. 2022) is an independent, non-Yang baseline run from the authors' code. GMC is our proposed method; GMC-E (marked $\dagger$) is an upper reference from predictor-level fusion whose composition is selected on the test folds, not a proposed method.}
+\caption{Comparison with published methods (mean $\pm$ std, 10-fold CVa). AUPR is the primary metric; the best AUPR per column among the proposed method and baselines is in \textbf{bold}. OMC / ITRPCA / DNMFDDA use the fused 5+2 input where their pipelines accept it; ``(C+Ph)'' denotes the ChemS+PhS input configuration. NMF-DR (Sadeghi et al. 2022) is an independent, non-Yang baseline run from the authors' code.}
 \label{tab:main_results}
 \small
 \begin{tabular}{llcccc}
 \toprule
 Dataset & Method & AUROC & AUPR & P@10 & P@20 \\
 \midrule
-\multirow{13}{*}{Fdataset}
+\multirow{12}{*}{Fdataset}
 & BNNR & $0.9321 \pm 0.0161$ & $0.6002 \pm 0.0244$ & 0.99 & 0.99 \\
 & OMC & $0.9447 \pm 0.0120$ & $0.6106 \pm 0.0271$ & 0.99 & 0.99 \\
 & ITRPCA & $0.9521 \pm 0.0105$ & $0.6321 \pm 0.0241$ & 1.00 & 1.00 \\
@@ -287,9 +239,8 @@ Dataset & Method & AUROC & AUPR & P@10 & P@20 \\
 & multiGMF (C+Ph) & $0.9308 \pm 0.0195$ & $0.5800 \pm 0.0272$ & 1.00 & 1.00 \\
 & multiGMF & $0.9534 \pm 0.0110$ & $0.6253 \pm 0.0255$ & 1.00 & 0.99 \\
 & GMC (ours) & $0.9588 \pm 0.0096$ & \textbf{$0.6569 \pm 0.0253$} & 0.99 & 0.98 \\
-& GMC-E (ours) $\dagger$ & $0.9641 \pm 0.0082$ & $0.6730 \pm 0.0266$ & 0.99 & 0.99 \\
 \midrule
-\multirow{13}{*}{Cdataset}
+\multirow{12}{*}{Cdataset}
 & BNNR & $0.9502 \pm 0.0117$ & $0.6805 \pm 0.0354$ & 0.99 & 0.99 \\
 & OMC & $0.9587 \pm 0.0089$ & $0.6900 \pm 0.0351$ & 0.99 & 0.99 \\
 & ITRPCA & $0.9661 \pm 0.0086$ & $0.7038 \pm 0.0226$ & 1.00 & 1.00 \\
@@ -302,9 +253,8 @@ Dataset & Method & AUROC & AUPR & P@10 & P@20 \\
 & multiGMF (C+Ph) & $0.9490 \pm 0.0114$ & $0.6630 \pm 0.0197$ & 1.00 & 1.00 \\
 & multiGMF & $0.9673 \pm 0.0072$ & $0.6931 \pm 0.0210$ & 1.00 & 1.00 \\
 & GMC (ours) & $0.9703 \pm 0.0064$ & \textbf{$0.7285 \pm 0.0222$} & 1.00 & 1.00 \\
-& GMC-E (ours) $\dagger$ & $0.9737 \pm 0.0056$ & $0.7394 \pm 0.0199$ & 1.00 & 1.00 \\
 \midrule
-\multirow{13}{*}{CTDdataset2023}
+\multirow{12}{*}{CTDdataset2023}
 & BNNR & $0.8629 \pm 0.0087$ & $0.2339 \pm 0.0229$ & 0.83 & 0.72 \\
 & OMC & $0.8830 \pm 0.0095$ & $0.2637 \pm 0.0310$ & 0.85 & 0.73 \\
 & ITRPCA & $0.9065 \pm 0.0104$ & $0.3287 \pm 0.0248$ & 0.81 & 0.83 \\
@@ -317,9 +267,8 @@ Dataset & Method & AUROC & AUPR & P@10 & P@20 \\
 & multiGMF (C+Ph) & $0.8858 \pm 0.0104$ & $0.2582 \pm 0.0209$ & 0.78 & 0.78 \\
 & multiGMF & $0.9104 \pm 0.0059$ & $0.3184 \pm 0.0296$ & 0.84 & 0.81 \\
 & GMC (ours) & $0.9147 \pm 0.0087$ & \textbf{$0.3714 \pm 0.0269$} & 0.90 & 0.86 \\
-& GMC-E (ours) $\dagger$ & $0.9147 \pm 0.0087$ & $0.3714 \pm 0.0269$ & 0.90 & 0.86 \\
 \midrule
-\multirow{13}{*}{Ydataset}
+\multirow{12}{*}{Ydataset}
 & BNNR & $0.9515 \pm 0.0032$ & $0.7214 \pm 0.0130$ & 1.00 & 1.00 \\
 & OMC & $0.9599 \pm 0.0029$ & $0.7279 \pm 0.0133$ & 1.00 & 1.00 \\
 & ITRPCA & $0.9643 \pm 0.0037$ & $0.7086 \pm 0.0133$ & 1.00 & 1.00 \\
@@ -332,24 +281,18 @@ Dataset & Method & AUROC & AUPR & P@10 & P@20 \\
 & multiGMF (C+Ph) & $0.9568 \pm 0.0033$ & $0.6876 \pm 0.0155$ & 1.00 & 1.00 \\
 & multiGMF & $0.9669 \pm 0.0042$ & $0.7101 \pm 0.0151$ & 1.00 & 1.00 \\
 & GMC (ours) & $0.9690 \pm 0.0026$ & \textbf{$0.7404 \pm 0.0124$} & 1.00 & 1.00 \\
-& GMC-E (ours) $\dagger$ & $0.9740 \pm 0.0026$ & $0.7522 \pm 0.0118$ & 1.00 & 1.00 \\
 \bottomrule
 \end{tabular}
 \end{table*}
 
-Three observations stand out. First, under this protocol the winner is the completion family, not the propagation family: the completion baselines (BNNR, OMC, ITRPCA, DNMFDDA, MSBMF) dominate the label-propagation and diffusion methods (multiGMF, HGIMC, DDA-SKF) on every dataset, and NMF-DR---which diffuses associations through the similarity graphs and factorizes the diffused matrix---attains the lowest AUPR (0.03--0.07) while its AUROC remains $\approx 0.69$ (Table~\ref{tab:main_results}): its transductive diffusion scores are dominated by neighborhood association density, so under the $\approx 1{:}95$ imbalance its held-out positives reach only the mid-ranks, and AUPR---set by the extreme top of the ranking---collapses. This confirms that random-entry masking is a low-rank completion problem, not a propagation problem. Second, GMC beats the entire completion family: it couples global low-rank capacity with the cold-start graph prior, and the tensor$+$block rank fusion completes the model where the block view alone is weakest (Section~\ref{sec:ablation}): on Fdataset and Cdataset the block view alone already attains the full-model AUPR, while the tensor view is decisive on CTDdataset2023 ($+0.045$ AUPR, $p=0.002$) and adds $+0.011$ on Ydataset. Third, the headroom from predictor-level fusion is substantial: the upper reference GMC-E---GMC fused with the complementary completion predictors, with composition selected on the test folds---gains $+0.028$, $+0.017$, $+0.043$, $+0.024$ AUPR over the strongest single baseline on Fdataset, Cdataset, CTDdataset2023, and Ydataset (Section~\ref{sec:upper}).
+Three observations stand out. First, under this protocol the winner is the completion family, not the propagation family: the completion baselines (BNNR, OMC, ITRPCA, DNMFDDA, MSBMF) dominate the label-propagation and diffusion methods (multiGMF, HGIMC, DDA-SKF) on every dataset, and NMF-DR---which diffuses associations through the similarity graphs and factorizes the diffused matrix---attains the lowest AUPR (0.03--0.07) while its AUROC remains $\approx 0.69$ (Table~\ref{tab:main_results}): its transductive diffusion scores are dominated by neighborhood association density, so under the $\approx 1{:}95$ imbalance its held-out positives reach only the mid-ranks, and AUPR---set by the extreme top of the ranking---collapses. This confirms that random-entry masking is a low-rank completion problem, not a propagation problem. Second, GMC beats the entire completion family: it couples global low-rank capacity with the cold-start graph prior, and the tensor$+$block rank fusion completes the model where the block view alone is weakest (Section~\ref{sec:ablation}): on Fdataset and Cdataset the block view alone already attains the full-model AUPR, while the tensor view is decisive on CTDdataset2023 ($+0.045$ AUPR, $p=0.002$) and adds $+0.011$ on Ydataset.
 
 \begin{figure*}[tb]
 \centering
 \includegraphics[width=\textwidth]{figures/fig2_main}
-\caption{AUPR of GMC (blue) and GMC-E (red) vs.\ published baselines under 10-fold CVa (mean $\pm$ std over the ten folds; one panel per dataset). GMC (proposed method) attains the highest mean AUPR on all four datasets; GMC-E (red) is an upper reference quantifying the headroom from predictor-level fusion, not a proposed method.}
+\caption{AUPR of GMC vs.\ published baselines under 10-fold CVa (mean $\pm$ std over the ten folds; one panel per dataset). GMC (proposed method) attains the highest mean AUPR on all four datasets.}
 \label{fig:main}
 \end{figure*}
-
-\subsection{Upper Reference: GMC-E}
-\label{sec:upper}
-
-Table~\ref{tab:main_results} and Figure~\ref{fig:main} also report GMC-E, the score-level fusion of GMC with the complementary completion-family predictors (DNMFDDA, ITRPCA, OMC, MSBMF) constructed in Section~\ref{sec:gmc-e}. GMC-E attains AUPR of 0.6730, 0.7394, 0.3714, and 0.7522 on Fdataset, Cdataset, CTDdataset2023, and Ydataset---the highest on all four datasets, gaining $+0.028$, $+0.017$, $+0.043$, and $+0.024$ AUPR over the strongest single baseline. On CTDdataset2023 no fusion combination improves over GMC itself, so GMC-E equals GMC there (0.3714): GMC already extracts the full low-rank signal on that dataset, leaving no headroom for predictor-level fusion. We emphasize that GMC-E is \emph{not} proposed as a methodological contribution: its per-dataset composition and filter settings are selected on the same test folds used for evaluation, so the comparison is optimistically biased. We report it only as an \emph{upper reference} quantifying the headroom available from predictor-level fusion; how much of this headroom a leak-free selection rule could recover is not established here.
 
 \subsection{Ablation Study}
 \label{sec:ablation}
@@ -527,10 +470,6 @@ Under random-entry masking (CVa), each fold presents a partially observed matrix
 
 The block and tensor views see the data differently: the block view uses the \emph{fused} similarities as a regularizer of the joint low-rank projection, while the tensor view keeps each similarity slice separate and projects onto a view-specific low-rank basis. Their errors are therefore decorrelated, and rank-normalized averaging exploits this complementarity. Both views are used at equal weights on every dataset. The ablation (Table~\ref{tab:ablation}) shows the block view alone ($\gmcmode{C}$) already delivers nearly all of the model's capacity on Fdataset and Cdataset ($0.6572$ vs.\ $0.6579$; $0.7259$ vs.\ $0.7252$) but only part of it on CTDdataset2023 and Ydataset ($0.3244$ of $0.3693$; $0.7306$ of $0.7412$). The tensor view then provides the decisive lift on exactly the two datasets where the block view is weakest---on CTDdataset2023 ($+0.045$ AUPR, $p=0.002$) and Ydataset ($+0.011$)---while remaining neutral on Fdataset and Cdataset ($\pm 0.001$). The tensor view supplies the extra capacity that the block view lacks on the harder datasets, without degrading the two where the block view already suffices.
 
-\subsection{Why the GMC-E Headroom Is Large: Predictor-Level Fusion}
-
-The size of the GMC-E headroom has a simple explanation. The completion-family predictors are all accurate but imperfect, and their per-fold errors are only weakly correlated (each is a different low-rank geometry). Fusing GMC with the complementary completion predictors---DNMFDDA, ITRPCA, OMC, and/or MSBMF---reduces variance and lifts AUPR, which is non-monotone under averaging precisely because complementary rankers correct each other's mistakes; applying the sparse bilateral filter to the fused raw scores adds local refinement. We report GMC-E to bound this headroom, not to claim it as a method: its composition is selected on the test folds, so the same gains should not be expected from a leak-free selection rule.
-
 \subsection{Comparison with Prior Work}
 
 The multi-similarity family we compare against---MSBMF \cite{yang2020msbmf}, HGIMC \cite{yang2021hgimc}, multiGMF \cite{multiGMFcode}---was evaluated by its authors under CVa, the protocol we adopt. Under our folds and scoring, the completion members of this family (OMC, ITRPCA, DNMFDDA) are the strongest baselines, and GMC is ahead of all of them. The single-similarity completion baseline BNNR trails the multi-similarity completions on every dataset, confirming the value of the 5+2 views even under completion.
@@ -541,33 +480,33 @@ More broadly, computational drug repositioning has a long lineage that GMC build
 
 \subsection{Limitations and Future Work}
 
-Several limitations merit discussion. First, the fusion weights ($w_{\text{b}}=w_{\text{t}}=0.5$), the rank cap, and the absence of a post-hoc filter are fixed across datasets; on Fdataset a filter-based variant tuned for that dataset alone is marginally better (0.6580 vs.\ 0.6569, not significant), so a small per-dataset gain is forgone. Second, the tensor view is computationally heavy (the t-SVD dominates runtime on the larger datasets); a randomized or low-rank tensor approximation would reduce this. Third, the cold-start restriction is binary (all-zero vs.\ partially observed); a graded confidence scheme could interpolate. Finally, prospective experimental validation of top-ranked predictions would strengthen translational relevance. The upper reference GMC-E is deliberately excluded from these claims, as its test-fold-selected composition does not give a fair accuracy estimate.
+Several limitations merit discussion. First, the tensor view is computationally heavy (the t-SVD dominates runtime on the larger datasets); a randomized or low-rank tensor approximation would reduce this. Second, the cold-start restriction is binary (all-zero vs.\ partially observed); a graded confidence scheme could interpolate. Finally, prospective experimental validation of top-ranked predictions would strengthen translational relevance.
 
 \section{Conclusion}
 
-We introduced GMC, a graph multi-view completion method for drug repositioning that combines the two families that win under different protocols: the global low-rank completion capacity that dominates random-entry masking, and the local graph structure (cold-start-restricted KNN fill, similarity-graph-regularized block completion) that propagation methods exploit. Under 10-fold CVa, GMC attains the highest AUPR on all four---significant against every published baseline on CTDdataset2023 and Ydataset, and ahead of DNMFDDA without reaching significance on Fdataset and Cdataset. Score-level fusion of GMC with the complementary completion-family predictors (GMC-E) raises AUPR further on Fdataset, Cdataset, and Ydataset (on CTDdataset2023 it does not improve on GMC), but because its composition is selected on the test folds we report it only as an upper reference, not as a proposed method. The core finding is that for drug repositioning under random-entry masking, a single model that couples global low-rank recovery with the local similarity graph attains the highest accuracy on all four benchmarks.
+We introduced GMC, a graph multi-view completion method for drug repositioning that combines the two families that win under different protocols: the global low-rank completion capacity that dominates random-entry masking, and the local graph structure (cold-start-restricted KNN fill, similarity-graph-regularized block completion) that propagation methods exploit. Under 10-fold CVa, GMC attains the highest AUPR on all four---significant against every published baseline on CTDdataset2023 and Ydataset, and ahead of DNMFDDA without reaching significance on Fdataset and Cdataset. The core finding is that for drug repositioning under random-entry masking, a single model that couples global low-rank recovery with the local similarity graph attains the highest accuracy on all four benchmarks.
 
-\section*{Data Availability}
+\section*{Data availability}
 
-The datasets used in this study are publicly available \cite{yang2020msbmf}. Source code for GMC and all experiments is available at [GitHub URL: to be added upon publication].
+The datasets used in this study are publicly available \cite{yang2020msbmf}. The source code for GMC and all experiments is available at [GitHub URL to be added upon publication].
 
 \section*{Funding}
 
 This work was supported by [Funding: grant number(s) to be added].
 
-\section*{Conflict of Interest}
+\section*{Declaration of competing interest}
 
-None declared.
+The authors declare that they have no known competing financial interests or personal relationships that could have appeared to influence the work reported in this paper.
 
-\section*{Author Contributions}
+\section*{CRediT authorship contribution statement}
 
-[Author initials] conceived the method, implemented the algorithms, conducted experiments, analyzed results, and wrote the manuscript.
+[Author initials]: Conceptualization, Methodology, Software, Validation, Formal analysis, Investigation, Data Curation, Writing -- Original Draft, Visualization. [Other author initials if applicable]: Supervision, Project administration, Funding acquisition.
 
 \section*{Acknowledgments}
 
 We thank the authors of the multi-similarity benchmark methods \cite{yang2020msbmf,yang2019,yang2021hgimc} for making their code and datasets publicly available.
 
-\bibliographystyle{oup-abbrvnat}
+\bibliographystyle{elsarticle-num}
 \bibliography{references}
 
 \end{document}
