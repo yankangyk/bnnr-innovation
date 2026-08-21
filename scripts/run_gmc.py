@@ -43,7 +43,8 @@ from gmc.helpers import FOLD_DIR, OUT_DIR, RESULT_DIR
 # single genuinely-new model (shared completion core alpha=0.5/i40, no
 # per-dataset strengthening). Structural choices (fill, block, observation
 # mask, fusion) are validated on fresh folds (SEED_FRESH=24680) and agree with
-# the reported test folds to ±0.001–0.002. A causal check of a
+# the reported test folds to ≈0.001–0.003 AUPR (F 0.0010 / C 0.0033 / CTD
+# 0.0021 / Y 0.0008). A causal check of a
 # similarity-block-conditioning rationale for the older Y gain found it does
 # not explain that gain (near-null Wdd directions lie beyond the rank cap) —
 # do not cite conditioning as a mechanism. See the View A section of
