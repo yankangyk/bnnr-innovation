@@ -375,27 +375,11 @@ $30\%$ & 0.5717 & 0.6563 & 0.3113 & 0.6514 \\
 
 To probe what GMC can and cannot do beyond the CVa held-out protocol, we consider two extrapolations of the reported configuration.
 
-\paragraph{Strict leave-all-known-out (de novo).} The most demanding test masks \emph{every} known association ($\mathrm{didr}>0 \rightarrow 0$) and asks GMC to recover the association matrix from similarity structure alone. Because the masked matrix is all-zero, the cold-start KNN fill degenerates to zero (its neighbor averages draw on all-zero rows and columns), so the prediction is purely similarity-driven low-rank completion. We rank all $n_d \times n_s$ entries by predicted score and measure hits@$K$ --- the number of the top-$K$ that are true (deliberately hidden) associations; a random ranking attains hits@$K \approx K\rho$ at known density $\rho$. Table~\ref{tab:loo} reports the result: the de novo AUPR collapses to the base rate on every dataset ($0.0101$/$0.0088$/$0.0086$/$0.0071$ on F/C/CTD/Y vs.\ $\rho = 0.0104$/$0.0093$/$0.0109$/$0.0087$), and hits@$K$ stays at the $K\rho$ chance level ($0$--$1$ of $10$, $0$--$3$ of $50$; the count fluctuates by $\pm 1$ between runs because the near-flat completion makes the extreme top of the ranking sensitive to thread-dependent float summation in the SVD, but the de novo AUPR is stable). This is a controlled demonstration that GMC's accuracy under CVa is a property of the completion \emph{propagating the observed associations}: the low-rank $+$ similarity prior alone does not rank true pairs above random when no association is observed. The model completes from evidence; it does not infer associations de novo from similarity alone.
+\paragraph{Strict leave-all-known-out (de novo).} The most demanding test masks \emph{every} known association ($\mathrm{didr}>0 \rightarrow 0$) and asks GMC to recover the association matrix from similarity structure alone. Because the masked matrix is all-zero, the cold-start KNN fill degenerates to zero (its neighbor averages draw on all-zero rows and columns), so the prediction is purely similarity-driven low-rank completion. We rank all $n_d \times n_s$ entries by predicted score and measure hits@$K$ --- the number of the top-$K$ that are true (deliberately hidden) associations; a random ranking attains hits@$K \approx K\rho$ at known density $\rho$. The de novo AUPR collapses to the base rate on every dataset ($0.0101$/$0.0088$/$0.0086$/$0.0071$ on F/C/CTD/Y vs.\ $\rho = 0.0104$/$0.0093$/$0.0109$/$0.0087$), and hits@$K$ stays at the $K\rho$ chance level ($0$--$1$ of $10$, $0$--$3$ of $50$; the count fluctuates by $\pm 1$ between runs because the near-flat completion makes the extreme top of the ranking sensitive to thread-dependent float summation in the SVD, but the de novo AUPR is stable). This is a controlled demonstration that GMC's accuracy under CVa is a property of the completion \emph{propagating the observed associations}: the low-rank $+$ similarity prior alone does not rank true pairs above random when no association is observed. The model completes from evidence; it does not infer associations de novo from similarity alone.
 
 \paragraph{High-ranking novel associations (full data).} When the observed structure is available, GMC's extrapolation concentrates on plausible candidates. Running the reported configuration on the full (unmasked) matrix and ranking the pairs with no known association ($\mathrm{didr}=0$), several candidates recur in the top ten of more than one dataset---DB00584--D161900 in three, and DB08799--D607154, DB05271--D168100, DB08802--D607154 among others in two---so the same candidate associations rank stably across datasets built from different similarity views, a weak but non-trivial consistency signal. As a manual follow-up we checked all $40$ top-ten predictions across the four datasets ($29$ of which are unique drug--disease pairs) against the literature via PubMed and CTD: $19$ of the $29$ pairs ($65.5\%$) have direct supporting evidence and a further $6$ ($20.7\%$) are mentioned without established evidence, so $86.2\%$ of the candidates are at least consistent with existing literature, while only $4$ pairs ($13.8\%$) had no evidence found (Table~\ref{tab:case} annotates the displayed top-three rows). These are candidate pairs for follow-up rather than validated findings, but the high hit rate ($65.5$--$86.2\%$) confirms that, given the observed structure, high-ranked novel predictions concentrate on plausible associations.
 
-\begin{table}[tb]
-\centering
-\caption{Strict leave-all-known-out recovery (hits@$K$, 2026-08-16). Every known association is masked ($\mathrm{didr}>0\rightarrow0$) and GMC predicts from similarity structure alone (the all-zero mask makes the cold-start KNN fill degenerate to zero, so the prediction is pure low-rank completion). hits@$K$ = number of true (hidden) associations among the top-$K$ ranked entries; the random expectation is $K\rho$ at known density $\rho$ (in parentheses). On all four datasets hits@$K$ stays at the chance level and the de novo AUPR collapses to $\rho$.}
-\label{tab:loo}
-\small
-\begin{tabular}{lcccc}
-\toprule
- & Fdataset & Cdataset & CTDdataset2023 & Ydataset \\
-\midrule
-known density $\rho$ & 0.0104 & 0.0093 & 0.0109 & 0.0087 \\
-hits@10 (chance $10\rho$) & 0 (0.10) & 0 (0.09) & 0 (0.11) & 1 (0.09) \\
-hits@20 (chance $20\rho$) & 0 (0.21) & 0 (0.19) & 0 (0.22) & 1 (0.17) \\
-hits@50 (chance $50\rho$) & 1 (0.52) & 1 (0.47) & 1 (0.54) & 3 (0.44) \\
-de novo AUPR (chance $=\rho$) & 0.0101 & 0.0088 & 0.0086 & 0.0071 \\
-\bottomrule
-\end{tabular}
-\end{table}
+% Strict leave-all-known-out (de novo) result: AUPR collapses to base rate, hits@K at chance --- reported in the narrative above.
 
 \begin{table}[tb]
 \centering
