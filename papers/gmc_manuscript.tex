@@ -64,18 +64,18 @@
 
 \section{Introduction}
 
-Drug discovery costs exceed \$2.6 billion per approved compound, with development timelines spanning 10--15 years \cite{dimasi2003,paul2010}. Drug repositioning---identifying new indications for already-approved drugs---bypasses early-stage safety trials and substantially reduces both cost and risk \cite{chong2007}. Computational approaches span network-based methods \cite{yamanishi2008,martinez2015,luo2016}, matrix factorization \cite{dai2015,ezzat2017,zheng2013,yang2020msbmf}, graph neural networks \cite{fu2022,gao2023}, and matrix completion \cite{yang2019,luo2018,mongia2022}.
+Drug discovery costs exceed \$2.6 billion per approved compound, with development timelines spanning 10--15 years \citep{dimasi2003,paul2010}. Drug repositioning---identifying new indications for already-approved drugs---bypasses early-stage safety trials and substantially reduces both cost and risk \citep{chong2007}. Computational approaches span network-based methods \citep{yamanishi2008,martinez2015,luo2016}, matrix factorization \citep{dai2015,ezzat2017,zheng2013,yang2020msbmf}, graph neural networks \citep{fu2022,gao2023}, and matrix completion \citep{yang2019,luo2018,mongia2022}.
 
-A powerful and recurring idea is to exploit \emph{multiple} drug and disease similarity views simultaneously. The multi-similarity family provides five drug similarities (chemical structure, ATC codes, side effects, drug--drug interactions, target profiles) and two disease similarities (phenotype, disease ontology) for the Fdataset, Cdataset, CTDdataset2023, and Ydataset benchmarks \cite{yang2020msbmf}; methods that jointly exploit these views---MSBMF \cite{yang2020msbmf}, HGIMC \cite{yang2021hgimc}, and most recently multi-similarity geometric matrix factorization (multiGMF)---outperform single-similarity predictors.
+A powerful and recurring idea is to exploit \emph{multiple} drug and disease similarity views simultaneously. The multi-similarity family provides five drug similarities (chemical structure, ATC codes, side effects, drug--drug interactions, target profiles) and two disease similarities (phenotype, disease ontology) for the Fdataset, Cdataset, CTDdataset2023, and Ydataset benchmarks \citep{yang2020msbmf}; methods that jointly exploit these views---MSBMF \citep{yang2020msbmf}, HGIMC \citep{yang2021hgimc}, and most recently multi-similarity geometric matrix factorization (multiGMF) \citep{multiGMFpreprint}---outperform single-similarity predictors.
 
-The evaluation protocol determines which paradigm wins. Under disease-centric cross-validation (CVc), held-out diseases are entirely unobserved and predictions are ranked within the full candidate pool; local label-propagation and graph-filtering methods excel there. Under the random-entry masking protocol (CVa)---where 10\% of positive and negative associations are held out per fold and the task is to recover them from a partially observed matrix---the problem is a \emph{matrix completion} problem \cite{candes2009}, and the best-performing methods are all global low-rank factorizations or completions: DNMFDDA (deep semi-NMF), ITRPCA (incomplete tensor robust PCA), OMC (overlap matrix completion), and BNNR (nuclear-norm completion). We adopt CVa because it is the standard evaluation setting of the multi-similarity benchmark suite, including the state-of-the-art baseline multiGMF. This random-entry masking setup mirrors the practical setting in which some already-known drug--disease associations are unobserved at prediction time, whereas disease-centric CVc targets fully cold-start novel diseases and is a distinct prediction task.
+The evaluation protocol determines which paradigm wins. Under disease-centric cross-validation (CVc), held-out diseases are entirely unobserved and predictions are ranked within the full candidate pool; local label-propagation and graph-filtering methods excel there. Under the random-entry masking protocol (CVa)---where 10\% of positive and negative associations are held out per fold and the task is to recover them from a partially observed matrix---the problem is a \emph{matrix completion} problem \citep{candes2009}, and the best-performing methods are all global low-rank factorizations or completions: DNMFDDA (deep semi-NMF), ITRPCA (incomplete tensor robust PCA), OMC (overlap matrix completion), and BNNR (nuclear-norm completion). We adopt CVa because it is the standard evaluation setting of the multi-similarity benchmark suite, including multiGMF, a state-of-the-art preprint. This random-entry masking setup mirrors the practical setting in which some already-known drug--disease associations are unobserved at prediction time, whereas disease-centric CVc targets fully cold-start novel diseases and is a distinct prediction task.
 
 Two limitations of the pure completion paradigm drive our design. First, a low-rank projection discards the \emph{local} neighborhood structure that label propagation exploits: two drugs with identical low-rank coordinates are treated identically even when one shares neighbors with a known disease and the other does not. Second, the 5+2 similarity views are fused implicitly inside a single objective, so systematic errors in one view contaminate the whole reconstruction rather than being corrected by agreement across views.
 
 We propose \textbf{GMC} (Graph Multi-view Completion), a new model built on two principles:
 
 \begin{enumerate}
-    \item \textbf{Cold-start-restricted fill (initialization of the completion).} All-zero rows and columns (novel drugs or diseases) carry no signal for a rank solver, so GMC seeds exactly those positions with the similarity-weighted average of the labels of the $k=10$ nearest neighbors over the similarity graphs \cite{yang2019omc2}. Partially observed entities keep their sparse zeros, so the completion propagates from true labels only. This is the local, graph-based warm start that pure completion lacks---an initialization of the solver, not a standalone predictor.
+    \item \textbf{Cold-start-restricted fill (initialization of the completion).} All-zero rows and columns (novel drugs or diseases) carry no signal for a rank solver, so GMC seeds exactly those positions with the similarity-weighted average of the labels of the $k=10$ nearest neighbors over the similarity graphs \citep{yang2019omc2}. Partially observed entities keep their sparse zeros, so the completion propagates from true labels only. This is the local, graph-based warm start that pure completion lacks---an initialization of the solver, not a standalone predictor.
 
     \item \textbf{Multi-view low-rank completion with scale-free fusion.} A single nuclear-norm completion is solved in two geometries of the \emph{same} similarity data: a matrix geometry on the joint bipartite+similarity block $\left[\begin{smallmatrix}\mathbf{W}_{dd} & \mathbf{F}\\ \mathbf{F}^\top & \mathbf{W}_{rr}\end{smallmatrix}\right]$ (denoising mode), and a tensor geometry over the per-similarity tensors. The two readouts live on different scales, so they are rank-normalized to $[0,1]$ before combination; their errors are decorrelated, so the fusion adds robustness precisely where the two views differ most (Section~\ref{sec:results}).
 \end{enumerate}
@@ -88,7 +88,7 @@ We evaluate GMC on the four benchmarks under 10-fold CVa. GMC attains AUPR of 0.
 
 \subsection{Datasets and Similarities}
 
-We evaluate on four drug--disease association benchmarks from the multi-similarity literature \cite{yang2020msbmf}. Each dataset provides an association matrix $\mathbf{A} \in \{0,1\}^{n_d \times n_s}$ (diseases $\times$ drugs) together with five drug--drug similarity matrices --- chemical structure (ChemS, Tanimoto over CDK fingerprints \cite{steinbeck2003}), ATC code (AtcS), side effects (SideS), drug--drug interactions (DDIS), and target profiles (TargetS) --- and two disease--disease similarity matrices --- phenotype (PhS, MimMiner over MeSH descriptions \cite{vandriel2006}) and disease ontology (DoS). These 5+2 similarity views are not part of the original published association benchmarks; they were computed by Yang \emph{et al.} \cite{yang2020msbmf} from public databases (DrugBank, SIDER, OMIM, and the disease ontology). Table~\ref{tab:datasets} summarizes the datasets. We use the mean-fused similarity views $\mathbf{W}_{rr} = \frac{1}{5}\sum_{m=1}^5 \mathbf{S}^{(m)}_{rr}$ and $\mathbf{W}_{dd} = \frac{1}{2}\sum_{m=1}^2 \mathbf{S}^{(m)}_{dd}$ for the block completion and the filter, while the tensor view uses the per-similarity matrices directly.
+We evaluate on four drug--disease association benchmarks from the multi-similarity literature \citep{yang2020msbmf}. Each dataset provides an association matrix $\mathbf{A} \in \{0,1\}^{n_d \times n_s}$ (diseases $\times$ drugs) together with five drug--drug similarity matrices --- chemical structure (ChemS, Tanimoto over CDK fingerprints \citep{steinbeck2003}), ATC code (AtcS), side effects (SideS), drug--drug interactions (DDIS), and target profiles (TargetS) --- and two disease--disease similarity matrices --- phenotype (PhS, MimMiner over MeSH descriptions \citep{vandriel2006}) and disease ontology (DoS). These 5+2 similarity views are not part of the original published association benchmarks; they were computed by \citet{yang2020msbmf} from public databases (DrugBank, SIDER, OMIM, and the disease ontology). Table~\ref{tab:datasets} summarizes the datasets. We use the mean-fused similarity views $\mathbf{W}_{rr} = \frac{1}{5}\sum_{m=1}^5 \mathbf{S}^{(m)}_{rr}$ and $\mathbf{W}_{dd} = \frac{1}{2}\sum_{m=1}^2 \mathbf{S}^{(m)}_{dd}$ for the block completion, while the tensor view uses the per-similarity matrices directly.
 
 \begin{table*}[tb]
 \centering
@@ -106,7 +106,7 @@ Ydataset & 655 & 1,478 & 8,448 & $8.73 \times 10^{-3}$ \\
 \end{tabular}
 \end{table*}
 
-All four datasets fall in the moderate-density regime ($\rho \approx 10^{-2}$). We fix the sparsification level at $k=5$ throughout (Section~\ref{sec:method}).
+All four datasets fall in the moderate-density regime ($\rho \approx 10^{-2}$).
 
 \subsection{GMC: Method Description}
 \label{sec:method}
@@ -115,7 +115,7 @@ Random-entry masking turns drug repositioning into a matrix-completion problem: 
 
 \subsubsection{Cold-Start-Restricted Fill (Initialization of the Completion)}
 
-A rank-based solver needs a starting value at every entry, but all-zero rows and columns of the masked matrix $\mathbf{M} \in \R^{n_d \times n_s}$ carry no gradient signal, so the completion is degenerate there. GMC seeds exactly those positions with a similarity-weighted neighbor prior \cite{yang2019omc2}: for each all-zero row (novel disease) $i$, the fill averages the association profiles of the $k=10$ most similar diseases using the fused disease similarity $\mathbf{W}_{dd}$:
+A rank-based solver needs a starting value at every entry, but all-zero rows and columns of the masked matrix $\mathbf{M} \in \R^{n_d \times n_s}$ carry no gradient signal, so the completion is degenerate there. GMC seeds exactly those positions with a similarity-weighted neighbor prior \citep{yang2019omc2}: for each all-zero row (novel disease) $i$, the fill averages the association profiles of the $k=10$ most similar diseases using the fused disease similarity $\mathbf{W}_{dd}$:
 
 \begin{equation}
 \tilde{\mathbf{M}}_{ic} = \frac{\sum_{j \in \mathcal{N}_k(i)} \mathbf{W}_{dd}(i,j)\,\mathbf{M}_{jc}}{\sum_{j' \in \mathcal{N}_k(i)} \mathbf{W}_{dd}(i,j')},
@@ -141,7 +141,7 @@ The first geometry fuses all similarity views into one weighted graph and comple
 \mathbf{T} = \begin{bmatrix} \mathbf{W}_{dd} & \mathbf{F} \\ \mathbf{F}^\top & \mathbf{W}_{rr} \end{bmatrix} \in \R^{(n_d+n_s)\times(n_d+n_s)},
 \label{eq:block}
 \end{equation}
-obtained by solving the bounded nuclear-norm minimization (BNNR/SVT \cite{yang2019,cai2010})
+obtained by solving the bounded nuclear-norm minimization \citep{yang2019}
 \begin{equation}
 \begin{split}
 \min_{\mathbf{X}} \; &\tfrac{1}{2}\lVert \mathcal{P}_\Omega(\mathbf{X}-\mathbf{T}) \rVert_F^2 + \alpha \lVert \mathbf{X} \rVert_*, \\
@@ -149,11 +149,11 @@ obtained by solving the bounded nuclear-norm minimization (BNNR/SVT \cite{yang20
 \end{split}
 \label{eq:bnnr}
 \end{equation}
-via ADMM \cite{boyd2011} with singular-value soft-thresholding (rank-capped at $400$, chosen as the center of the sensitivity grid (Section~\ref{sec:param}) and sufficient for all four datasets), where $\Omega$ is the set of observed (non-zero) entries of $\mathbf{T}$: only the true labels and the similarity blocks are fitted, so the low-rank projection is free to move the zero-valued (unknown) positions rather than being pinned to the fill. Because the similarity blocks are dense and observed, this is close to the \emph{denoising} mode of BNNR: the similarity structure regularizes the low-rank projection of the fill. The drug--disease block is recovered as $\mathbf{M}_{\text{bnnr}} = \mathbf{X}_{[0:n_d,\,n_d:n_d+n_s]}$ and clipped to $[0,1]$. Treating the similarity structure as part of the low-rank block---rather than as a separate constraint---is what lets the completion borrow strength across the joint graph. A symmetric block with rank cap $400$ and the observed-nonzero mask is used (the rank cap matters on the larger datasets, whose association matrices have higher intrinsic rank). This is the matrix geometry of the rank prior; the next subsection lifts the same prior to a tensor geometry that keeps the individual similarity views instead of fusing them.
+via ADMM \citep{boyd2011} with singular-value soft-thresholding \citep{cai2010} (rank-capped at $400$, chosen as the center of the sensitivity grid (Section~\ref{sec:param}) and sufficient for all four datasets), where $\Omega$ is the set of observed (non-zero) entries of $\mathbf{T}$: only the true labels and the similarity blocks are fitted, so the low-rank projection is free to move the zero-valued (unknown) positions rather than being pinned to the fill. Because the similarity blocks are dense and observed, this is close to the \emph{denoising} mode of the block completion: the similarity structure regularizes the low-rank projection of the fill. The drug--disease block is recovered as $\mathbf{M}_{\text{block}} = \mathbf{X}_{[0:n_d,\,n_d:n_d+n_s]}$ and clipped to $[0,1]$. Treating the similarity structure as part of the low-rank block---rather than as a separate constraint---is what lets the completion borrow strength across the joint graph. A symmetric block with rank cap $400$ and the observed-nonzero mask is used (the rank cap matters on the larger datasets, whose association matrices have higher intrinsic rank). This is the matrix geometry of the rank prior; the next subsection lifts the same prior to a tensor geometry that keeps the individual similarity views instead of fusing them.
 
 \subsubsection{Tensor Geometry: Nuclear Norm over the Per-Modality Slices}
 
-The second geometry lifts the same rank prior to third order: instead of fusing the similarity views, it keeps each one a separate slice and solves the completion with incomplete tensor robust PCA (ITRPCA \cite{yang2023itrpc}) over the per-similarity tensors $\boldsymbol{\mathcal{T}}_{rr} \in \R^{n_s\times n_s\times 5}$ and $\boldsymbol{\mathcal{T}}_{dd} \in \R^{n_d\times n_d\times 2}$. ITRPCA solves, via the alternating direction method of multipliers in the Fourier domain,
+The second geometry lifts the same rank prior to third order: instead of fusing the similarity views, it keeps each one a separate slice and solves the completion with incomplete tensor robust PCA \citep{yang2023itrpc} over the per-similarity tensors $\boldsymbol{\mathcal{T}}_{rr} \in \R^{n_s\times n_s\times 5}$ and $\boldsymbol{\mathcal{T}}_{dd} \in \R^{n_d\times n_d\times 2}$. The tensor solver proceeds by the alternating direction method of multipliers in the Fourier domain,
 \begin{equation}
 \begin{split}
 \min_{\boldsymbol{\mathcal{L}},\boldsymbol{\mathcal{S}}} \;
@@ -169,7 +169,7 @@ where $\lVert\cdot\rVert_{\oplus,p}$ is the tensor (weighted Schatten-$p$) nucle
 
 The two geometries produce two estimates of the \emph{same} masked completion from the \emph{same} similarity data, though they present the association evidence differently: the matrix geometry embeds the cold-start-filled matrix $\mathbf{F}$ in the joint block, whereas the tensor geometry operates on the bare masked matrix $\mathbf{M}$, with the solver's own internal WKNN fill. Both readouts serve a single estimator of the same masked completion. Because the two readouts live on different scales, a raw weighted sum would be dominated by whichever has larger magnitude, so each is rank-normalized to $[0,1]$ (global value rank) before combining:
 \begin{equation}
-\mathbf{F}_{\text{fuse}} = \frac{w_{\text{b}}\,\mathrm{rnorm01}(\mathbf{M}_{\text{bnnr}}) + w_{\text{t}}\,\mathrm{rnorm01}(\mathbf{M}_{\text{ten}})}{w_{\text{b}}+w_{\text{t}}},
+\mathbf{F}_{\text{fuse}} = \frac{w_{\text{b}}\,\mathrm{rnorm01}(\mathbf{M}_{\text{block}}) + w_{\text{t}}\,\mathrm{rnorm01}(\mathbf{M}_{\text{ten}})}{w_{\text{b}}+w_{\text{t}}},
 \label{eq:fusion}
 \end{equation}
 with equal weights $w_{\text{b}}=w_{\text{t}}=0.5$---one estimator. Because the two geometries have decorrelated errors (the matrix readout draws on the joint space, the tensor readout on per-modality structure), the combined estimator is at least as accurate as either readout alone within fold-level noise, and strictly better where the geometries differ most (Section~\ref{sec:results}). The rank-fused scores are returned directly, with training entries restored verbatim:
@@ -187,7 +187,7 @@ GMC is a single model designed from one low-rank completion prior. It solves one
 
 \subsubsection{Algorithm}
 
-Algorithm~\ref{alg:gmc} summarizes the complete procedure, and Figure~\ref{fig:framework} provides an overview of the GMC model. The BNNR and ITRPCA solvers are re-implemented in Python (the published MATLAB implementations are used for the baselines); all GMC components therefore run entirely in Python.
+Algorithm~\ref{alg:gmc} summarizes the complete procedure, and Figure~\ref{fig:framework} provides an overview of the GMC model. The block-completion solver is based on the bounded nuclear-norm method \citep{yang2019} and the tensor-completion solver is based on the tensor robust PCA method \citep{yang2023itrpc}; both are re-implemented in Python, and their published MATLAB implementations are used for the baselines, so all GMC components run entirely in Python.
 
 \begin{algorithm}[htbp]
 \caption{GMC: Graph Multi-view Completion}
@@ -199,9 +199,9 @@ Algorithm~\ref{alg:gmc} summarizes the complete procedure, and Figure~\ref{fig:f
 \textbf{Ensure:} $\hat{\mathbf{M}}$ (completed association matrix) & \\
 $\mathbf{F} \gets \mathrm{KNNcold}(\mathbf{M}, \mathbf{W}_{rr}, \mathbf{W}_{dd})$ & Eq.~\eqref{eq:knnfill},~\eqref{eq:coldstart} \\
 $\mathbf{T} \gets \mathrm{block}(\mathbf{W}_{dd}, \mathbf{F}, \mathbf{W}_{rr})$ & Eq.~\eqref{eq:block} \\
-$\mathbf{M}_{\text{bnnr}} \gets \mathrm{BNNR}(\mathbf{T}, \Omega{=}\text{observed mask})$ & Eq.~\eqref{eq:bnnr} \\
-$\mathbf{M}_{\text{ten}} \gets \mathrm{ITRPCA}(\{\mathbf{S}^{(m)}_{rr}\}, \{\mathbf{S}^{(m)}_{dd}\}, \mathbf{M})$ & Eq.~\eqref{eq:itrpca} \\
-$\mathbf{F}_{\text{fuse}} \gets \tfrac{1}{2}\,\mathrm{rnorm01}(\mathbf{M}_{\text{bnnr}}) + \tfrac{1}{2}\,\mathrm{rnorm01}(\mathbf{M}_{\text{ten}})$ & Eq.~\eqref{eq:fusion} \\
+$\mathbf{M}_{\text{block}} \gets \mathrm{BlockComplete}(\mathbf{T}, \Omega{=}\text{observed mask})$ & Eq.~\eqref{eq:bnnr} \\
+$\mathbf{M}_{\text{ten}} \gets \mathrm{TensorComplete}(\{\mathbf{S}^{(m)}_{rr}\}, \{\mathbf{S}^{(m)}_{dd}\}, \mathbf{M})$ & Eq.~\eqref{eq:itrpca} \\
+$\mathbf{F}_{\text{fuse}} \gets \tfrac{1}{2}\,\mathrm{rnorm01}(\mathbf{M}_{\text{block}}) + \tfrac{1}{2}\,\mathrm{rnorm01}(\mathbf{M}_{\text{ten}})$ & Eq.~\eqref{eq:fusion} \\
 $\hat{\mathbf{M}} \gets \mathbf{M} + (\mathbf{1} - \mathbf{1}_{\mathbf{M} \neq 0}) \odot \mathbf{F}_{\text{fuse}}$ & Eq.~\eqref{eq:restore} \\
 \textbf{return} $\hat{\mathbf{M}}$ & \\
 \end{tabular}
@@ -217,11 +217,11 @@ $\hat{\mathbf{M}} \gets \mathbf{M} + (\mathbf{1} - \mathbf{1}_{\mathbf{M} \neq 0
 \subsection{Evaluation Protocol}
 \label{sec:eval}
 
-We evaluate using 10-fold random-entry cross-validation (CVa), the protocol of the multi-similarity family: for each fold, 10\% of the positive associations (and an equal number of negatives) are held out, their entries are zeroed, and the task is to recover them. This is a matrix-completion setting. We report the area under the receiver-operating characteristic curve (AUROC), the area under the precision--recall curve (AUPR), and top-$K$ precision at $K = 10, 20$. Given extreme class imbalance (positive rate $\le 1.1\%$ in all datasets), AUPR is the primary metric \cite{saito2015}. All experiments use a fixed seed (12345); folds are identical across methods, so per-fold paired comparisons are valid.
+We evaluate using 10-fold random-entry cross-validation (CVa), the protocol of the multi-similarity family: for each fold, 10\% of the positive associations (and an equal number of negatives) are held out, their entries are zeroed, and the task is to recover them. This is a matrix-completion setting. We report the area under the receiver-operating characteristic curve (AUROC), the area under the precision--recall curve (AUPR), and top-$K$ precision at $K = 10, 20$. Given extreme class imbalance (positive rate $\le 1.1\%$ in all datasets), AUPR is the primary metric \citep{saito2015}. All experiments use a fixed seed (12345); folds are identical across methods, so per-fold paired comparisons are valid.
 
 GMC's hyperparameters (fill, block structure, rank cap, observation mask, and fusion weights) were selected on validation folds independent of the reported test folds: candidate settings were screened on a fresh independent CVa split (seed 24680), and the selected settings were then confirmed on the reported test folds. The two fold sets agree to within $\approx 0.001$--$0.003$ AUPR on every dataset (Fdataset $0.0010$, Cdataset $0.0033$, CTDdataset2023 $0.0021$, Ydataset $0.0008$), so the settings are not overfit to either fold set. Settings were frozen before the reported folds were scored, so the reported test folds did not participate in selection.
 
-Comparison methods are run with the authors' own code under the identical folds. We compare against nine published methods: BNNR (nuclear-norm completion, ChemS+PhS) \cite{yang2019}, HGIMC (ChemS+PhS and fused 5+2) \cite{yang2021hgimc}, MSBMF \cite{yang2020msbmf}, DDA-SKF (similarity kernel fusion + LapRLS) \cite{gao2022ddaskf}, OMC (overlap matrix completion with KNN cold-start fill) \cite{yang2019omc2}, ITRPCA (incomplete tensor robust PCA) \cite{yang2023itrpc}, DNMFDDA (deep semi-NMF) \cite{yang2025dnmf}, multiGMF (both the ChemS+PhS and full 5+2 configurations) \cite{multiGMFcode}, and NMF-DR (network-based non-negative matrix factorization, an independent method from an unrelated group) \cite{sadeghi2022}. AUPR differences between the model and each baseline are assessed with two-sided paired fold-level Wilcoxon signed-rank tests; the ten folds are paired by construction because every method is scored on the same held-out entries. (For $n=10$ folds, $p=0.002$ is the smallest two-sided $p$-value attainable, corresponding to all ten folds differing in the same direction.) To control the false-discovery rate across the eleven published baseline configurations per dataset, we additionally apply a Benjamini--Hochberg correction to the AUPR comparisons.
+Comparison methods are run with the authors' own code under the identical folds. We compare against nine published methods: BNNR (nuclear-norm completion, ChemS+PhS) \citep{yang2019}, HGIMC (ChemS+PhS and fused 5+2) \citep{yang2021hgimc}, MSBMF \citep{yang2020msbmf}, DDA-SKF (similarity kernel fusion + LapRLS) \citep{gao2022ddaskf}, OMC (overlap matrix completion with KNN cold-start fill) \citep{yang2019omc2}, ITRPCA (incomplete tensor robust PCA) \citep{yang2023itrpc}, DNMFDDA (deep semi-NMF) \citep{yang2025dnmf}, multiGMF (both the ChemS+PhS and full 5+2 configurations) \citep{multiGMFpreprint}, and NMF-DR (network-based non-negative matrix factorization, an independent method from an unrelated group) \citep{sadeghi2022}. AUPR differences between the model and each baseline are assessed with two-sided paired fold-level Wilcoxon signed-rank tests; the ten folds are paired by construction because every method is scored on the same held-out entries. (For $n=10$ folds, $p=0.002$ is the smallest two-sided $p$-value attainable, corresponding to all ten folds differing in the same direction.) To control the false-discovery rate across the eleven published baseline configurations per dataset, we additionally apply a Benjamini--Hochberg correction to the AUPR comparisons.
 
 \section{Results}
 \label{sec:results}
@@ -232,7 +232,7 @@ Table~\ref{tab:main_results} and Figure~\ref{fig:main} compare GMC against the n
 
 \begin{table*}[tb]
 \centering
-\caption{Comparison with published methods (mean $\pm$ std, 10-fold CVa). AUPR is the primary metric; the best AUPR per column among the proposed method and baselines is in \textbf{bold}. OMC / ITRPCA / DNMFDDA use the fused 5+2 input where their pipelines accept it; ``(C+Ph)'' denotes the ChemS+PhS input configuration. NMF-DR (Sadeghi et al. 2022) is an independent, non-Yang baseline run from the authors' code.}
+\caption{Comparison with published methods (mean $\pm$ std, 10-fold CVa). AUPR is the primary metric; the best AUPR per column among the proposed method and baselines is in \textbf{bold}. OMC / ITRPCA / DNMFDDA use the fused 5+2 input where their pipelines accept it; ``(C+Ph)'' denotes the ChemS+PhS input configuration. NMF-DR \citep{sadeghi2022} is an independent, non-Yang baseline run from the authors' code.}
 \label{tab:main_results}
 \small
 \begin{tabular}{llcccc}
@@ -405,11 +405,11 @@ The block and tensor views see the data differently: the block view uses the \em
 
 \subsection{Comparison with Prior Work}
 
-The multi-similarity family we compare against---MSBMF \cite{yang2020msbmf}, HGIMC \cite{yang2021hgimc}, multiGMF \cite{multiGMFcode}---was evaluated by its authors under CVa, the protocol we adopt. Under our folds and scoring, the completion members of this family (OMC, ITRPCA, DNMFDDA) are the strongest baselines, and GMC is ahead of all of them. The single-similarity completion baseline BNNR trails the multi-similarity completions on every dataset, confirming the value of the 5+2 views even under completion.
+The multi-similarity family we compare against---MSBMF \citep{yang2020msbmf}, HGIMC \citep{yang2021hgimc}, multiGMF \citep{multiGMFpreprint}---was evaluated by its authors under CVa, the protocol we adopt. Under our folds and scoring, the completion members of this family (OMC, ITRPCA, DNMFDDA) are the strongest baselines, and GMC is ahead of all of them. The single-similarity completion baseline BNNR trails the multi-similarity completions on every dataset, confirming the value of the 5+2 views even under completion.
 
-The HN-DRES benchmark \cite{li2024hn_dres} evaluates 28 network-based methods under CVa with 1:1 negative subsampling, where AUPR values are systematically inflated (0.90--0.98). Here we evaluate against the full negative pool, so AUPR values are lower (0.03--0.75); the ranking task is harder and the comparisons more conservative.
+The HN-DRES benchmark \citep{li2024hn_dres} evaluates 28 network-based methods under CVa with 1:1 negative subsampling, where AUPR values are systematically inflated (0.90--0.98). Here we evaluate against the full negative pool, so AUPR values are lower (0.03--0.75); the ranking task is harder and the comparisons more conservative.
 
-More broadly, computational drug repositioning has a long lineage that GMC builds on rather than replaces: heterogeneous-graph inference \cite{wang2013}, label propagation with Gaussian interaction-profile kernels \cite{vanlaarhoven2011}, neighborhood-regularized logistic matrix factorization \cite{liu2016}, neural collaborative-filtering variants \cite{meng2022}, rank minimization with neighborhood-constraint graph integration \cite{liu2025tarm}, and the classic PREDICT formulation of the drug--disease repositioning task itself \cite{gottlieb2011}; recent reviews survey this landscape \cite{huang2025,reda2025}. GMC is methodologically distinct from these families: it treats random-entry masking as a matrix-completion problem and couples global low-rank recovery with local graph structure, rather than relying on propagation, factorization, or kernel smoothing alone. Graph neural networks achieve strong performance under other cross-validation settings, but this work focuses on the matrix-completion paradigm under CVa; integrating GNN modules within the GMC framework is a promising future direction.
+More broadly, computational drug repositioning has a long lineage that GMC builds on rather than replaces: heterogeneous-graph inference \citep{wang2013}, label propagation with Gaussian interaction-profile kernels \citep{vanlaarhoven2011}, neighborhood-regularized logistic matrix factorization \citep{liu2016}, neural collaborative-filtering variants \citep{meng2022}, rank minimization with neighborhood-constraint graph integration \citep{liu2025tarm}, and the classic PREDICT formulation of the drug--disease repositioning task itself \citep{gottlieb2011}; recent reviews survey this landscape \citep{huang2025,reda2025}. GMC is methodologically distinct from these families: it treats random-entry masking as a matrix-completion problem and couples global low-rank recovery with local graph structure, rather than relying on propagation, factorization, or kernel smoothing alone. Graph neural networks achieve strong performance under other cross-validation settings, but this work focuses on the matrix-completion paradigm under CVa; integrating GNN modules within the GMC framework is a promising future direction.
 
 \subsection{Limitations and Future Work}
 
@@ -421,7 +421,7 @@ We introduced GMC, a graph multi-view completion method for drug repositioning t
 
 \section*{Data Availability}
 
-The datasets used in this study are publicly available \cite{yang2020msbmf}. Source code for GMC and all experiments is available at [GitHub URL: to be added upon publication].
+The datasets used in this study are publicly available \citep{yang2020msbmf}. Source code for GMC and all experiments is available at [GitHub URL: to be added upon publication].
 
 \section*{Funding}
 
@@ -437,7 +437,7 @@ None declared.
 
 \section*{Acknowledgments}
 
-We thank the authors of the multi-similarity benchmark methods \cite{yang2020msbmf,yang2019,yang2021hgimc} for making their code and datasets publicly available.
+We thank the authors of the multi-similarity benchmark methods \citep{yang2020msbmf,yang2019,yang2021hgimc} for making their code and datasets publicly available.
 
 \bibliographystyle{oup-abbrvnat}
 \bibliography{references}

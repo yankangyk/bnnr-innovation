@@ -39,6 +39,9 @@ papers/figures/*.png
 papers/figures/*.svg
 papers/figures/*.drawio
 
+# Word export (generated from .tex, not tracked)
+papers/*.docx
+
 # Claude
 .claude/
 CLAUDE.md
